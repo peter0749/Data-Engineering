@@ -31,7 +31,7 @@
             $handle = fopen($tmp_result, "r");
 
             echo "<div> <table class=\"table table-striped\">";
-            echo "<tr> <th> 來源 </th> <th> 標題 </th> </tr>";
+            echo "<tr> <th> 來源 </th> <th> 內文 </th> </tr>";
             $cnt = 0;
             while (($line = fgets($handle)) !== false) {
                 if ($cnt >= $start_row && $cnt < $end_row) {
