@@ -5,8 +5,11 @@
 #include <wchar.h>
 #include <locale.h>
 #include <unistd.h>
+#include "postprocess.h"
 
 const char *file_name_prefix = "./data/ettoday";
+const char *temp_out_file = "./sentences.txt";
+const char *final_out_file = "./dataset.txt";
 const char *file_name_postfix = ".rec";
 const size_t file_numbers = 6;
 const size_t file_prefix_length = 14;
@@ -65,7 +68,7 @@ int tokenize(wchar_t ***results, wchar_t *str) {
                 sentences = s_ptr_t;
                 s_ptr_t = NULL;
             }
-            sentences[cnt] = NULL; (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(ptr)+1));
+            sentences[cnt] = NULL; 
             sentences[cnt] = (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(ptr)+1));
             if (sentences[cnt]==NULL) exit(4);
             wcscpy(sentences[cnt], ptr);
@@ -102,14 +105,15 @@ int parse(void) {
     wchar_t **sentences = NULL;
     FILE *fp = NULL;
     FILE *fout = NULL;
-    fout = fopen("sentences.txt", "wb");
     news_record one_record;
+    fout = fopen(temp_out_file, "wb");
+    if (fout==NULL) exit(9);
     buffer = (wchar_t*)malloc(sizeof(wchar_t)*(buffer_limit+8));
-    if (buffer==NULL) return -1;
+    if (buffer==NULL) exit(10);
     for (size_t fno=0; fno<file_numbers; ++fno) {
         get_file_path(filename, fno);
         fp = fopen(filename, "rb");
-        if (fp==NULL) return -2;
+        if (fp==NULL) return -1;
 
         while(fgetws(buffer, buffer_limit, fp)!=NULL) {
             if(wcsncmp(buffer, L"@GAISRec:", 9)!=0) continue; // 找下一筆資料的開頭
@@ -145,7 +149,55 @@ int parse(void) {
     return 0;
 }
 
+void read_and_sort(void) {
+    FILE *fp = NULL, *fout=NULL;
+    wchar_t **sentences = NULL, *buffer=NULL, **new_s_p=NULL, *new_row=NULL;
+    size_t cap = 1024;
+    fp = fopen(temp_out_file, "rb");
+    fout = fopen(final_out_file, "wb");
+    sentences = (wchar_t**) malloc(sizeof(wchar_t*)*cap);
+    if (sentences==NULL) exit(5);
+    buffer = (wchar_t*) malloc(sizeof(wchar_t)*(buffer_limit+8));
+    if (buffer==NULL) exit(6);
+
+    size_t cnt = 0;
+    while(fgetws(buffer, buffer_limit, fp)!=NULL) {
+        if (cnt==cap) {
+            cap*=2;
+            new_s_p = NULL;
+            new_s_p = (wchar_t**)malloc(sizeof(wchar_t*)*cap);
+            if (new_s_p==NULL) exit(7);
+            memcpy(new_s_p, sentences, sizeof(wchar_t*)*cnt);
+            free(sentences);
+            sentences = new_s_p;
+            new_s_p = NULL;
+        }
+        size_t len = wcslen(buffer);
+        new_row = NULL;
+        new_row = (wchar_t*)malloc(sizeof(wchar_t)*(len+1));
+        if (new_row==NULL) exit(8);
+        wcscpy(new_row, buffer);
+        sentences[cnt] = new_row;
+        new_row = NULL;
+        ++cnt;
+    }
+    fclose(fp); fp=NULL;
+    free(buffer); buffer=NULL;
+
+    postprocess(sentences, cnt); // sort in lexical order
+
+    for (size_t i=0; i<cnt; ++i) { // traverse sorted sentences
+        fputws(sentences[i], fout);
+        free(sentences[i]);
+        sentences[i] = NULL;
+    }
+    free(sentences);
+    fclose(fout); fout=NULL;
+}
+
 int main(void) {
     setlocale(LC_ALL, ""); // 使用這個， fgetws 才不會出錯
-    return parse();
+    parse();
+    read_and_sort();
+    return 0;
 }
