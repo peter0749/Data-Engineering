@@ -5,6 +5,13 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
         <body>
+            <form action="?" method="get">
+                <div class="form-group", align="left">
+                    <label for="search">搜尋：</label>
+                    <input type="search" class="form-control" id="search" name="search">
+                </div>
+                <button type="submit" class="btn btn-default">Go!</button>
+            </form>
             <?php
             header("content-type:text/html;charset=utf-8");
             session_start();
