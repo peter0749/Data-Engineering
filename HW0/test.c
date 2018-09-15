@@ -11,19 +11,19 @@ const char *file_name_postfix = ".rec";
 const size_t file_numbers = 6;
 const size_t file_prefix_length = 14;
 const size_t buffer_limit = 8192;
-const size_t chinese_min_len = 6;
+const size_t chinese_min_len = 6; // 一句話要有5個字以上（不包含）
 
 // 中文 Unicode 區
 const unsigned long min_chinese = 0x4E00;
 const unsigned long max_chinese = 0x9FFF;
 // End 中文 unicode 區
 
-const wchar_t *tokens = L"。？！\r\b\t\n?!";
+const wchar_t *tokens = L"。？！\r\b\t\n?!"; // 斷句 tokens
 
 typedef struct {
-    wchar_t *url;
-    wchar_t *title;
-    wchar_t *context;
+    wchar_t *url; // 網頁 URL
+    wchar_t *title; // 新聞標題
+    wchar_t *context; // 新聞內文
 } news_record;
 
 int8_t is_chinese(wchar_t c) {
@@ -41,7 +41,7 @@ int tokenize(wchar_t ***results, wchar_t *str) {
     wchar_t **sentances=NULL, **s_ptr_t=NULL;
     wchar_t *ptr=NULL, *buff=NULL;
     int cnt = 0;
-    int cap = 32; // 初始容量, 三十二個寬字元
+    int cap = 32; // 初始容量, 三十二個寬字元指標
     sentances = (wchar_t**) malloc(sizeof(wchar_t*)*cap);
     if (sentances==NULL) exit(1);
     ptr = wcstok(str, tokens, &buff);
@@ -56,7 +56,7 @@ int tokenize(wchar_t ***results, wchar_t *str) {
         }
         if (ch_cnt>=chinese_min_len) { // 一句中文必須達到6個字(含)以上
             if(cnt==cap) { // buffer 滿了
-                cap *= 2;
+                cap *= 2; // 增加一倍容量
                 s_ptr_t = NULL;
                 s_ptr_t = (wchar_t**) malloc(sizeof(wchar_t*)*cap);
                 if (s_ptr_t==NULL) exit(2);
@@ -84,11 +84,11 @@ int tokenize(wchar_t ***results, wchar_t *str) {
     return cnt;
 }
 
-void format_line(wchar_t *str) {
+void format_line(wchar_t *str) { // 假設輸入 str 只有一行內容
     wchar_t *ptr = str;
     while(ptr!=NULL && *ptr!=0) {
-        if (*ptr==L'\t' || *ptr==L'\b' || *ptr==L'\r') *ptr=L' ';
-        if (*ptr==L'\n') { 
+        if (*ptr==L'\t' || *ptr==L'\b' || *ptr==L'\r') *ptr=L' '; // 清除空格與其他東西
+        if (*ptr==L'\n') {  // 清除結尾換行符號
             *ptr=0;
             break;
         }
@@ -112,7 +112,7 @@ int parse(void) {
         if (fp==NULL) return -2;
 
         while(fgetws(buffer, buffer_limit, fp)!=NULL) {
-            if(wcsncmp(buffer, L"@GAISRec:", 9)!=0) continue;
+            if(wcsncmp(buffer, L"@GAISRec:", 9)!=0) continue; // 找下一筆資料的開頭
             fgetws(buffer, buffer_limit, fp); // url
             format_line(buffer);
             one_record.url = (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(buffer)+1));
@@ -126,10 +126,10 @@ int parse(void) {
             one_record.context = (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(buffer)+1));
             wcscpy(one_record.context, buffer);
             int s_cnt = 0;
-            s_cnt = tokenize(&sentances, one_record.context);
+            s_cnt = tokenize(&sentances, one_record.context); // 這裡做斷句
             free(one_record.context); one_record.context=NULL;
             for (size_t i=0; i<s_cnt; ++i) {
-                fwprintf(fout, L"%ls\t%ls\t%ls\n", sentances[i], one_record.title, one_record.url);
+                fwprintf(fout, L"%ls\t%ls\t%ls\n", sentances[i], one_record.title, one_record.url); // 寫入句子到檔案
                 free(sentances[i]); sentances[i]=NULL;
             }
             free(sentances); sentances=NULL;
@@ -146,6 +146,6 @@ int parse(void) {
 }
 
 int main(void) {
-    setlocale(LC_ALL, "");
+    setlocale(LC_ALL, ""); // 使用這個， fgetws 才不會出錯
     return parse();
 }
