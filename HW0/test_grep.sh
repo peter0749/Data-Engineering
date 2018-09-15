@@ -1,4 +1,4 @@
 #!/bin/bash
 
-grep -P "^$1[^\t]*" sentances_sorted.txt > "$2"
+grep -P "^$1[^\t]*" dataset.txt > "$2"
 

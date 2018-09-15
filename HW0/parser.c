@@ -38,12 +38,12 @@ void get_file_path(char *filename, size_t fno) {
 }
 
 int tokenize(wchar_t ***results, wchar_t *str) {
-    wchar_t **sentances=NULL, **s_ptr_t=NULL;
+    wchar_t **sentences=NULL, **s_ptr_t=NULL;
     wchar_t *ptr=NULL, *buff=NULL;
     int cnt = 0;
     int cap = 32; // 初始容量, 三十二個寬字元指標
-    sentances = (wchar_t**) malloc(sizeof(wchar_t*)*cap);
-    if (sentances==NULL) exit(1);
+    sentences = (wchar_t**) malloc(sizeof(wchar_t*)*cap);
+    if (sentences==NULL) exit(1);
     ptr = wcstok(str, tokens, &buff);
     while(ptr!=NULL) {
         unsigned long ch_cnt = 0;
@@ -60,15 +60,15 @@ int tokenize(wchar_t ***results, wchar_t *str) {
                 s_ptr_t = NULL;
                 s_ptr_t = (wchar_t**) malloc(sizeof(wchar_t*)*cap);
                 if (s_ptr_t==NULL) exit(2);
-                memcpy(s_ptr_t, sentances, sizeof(wchar_t*)*cnt);
-                free(sentances);
-                sentances = s_ptr_t;
+                memcpy(s_ptr_t, sentences, sizeof(wchar_t*)*cnt);
+                free(sentences);
+                sentences = s_ptr_t;
                 s_ptr_t = NULL;
             }
-            sentances[cnt] = NULL; (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(ptr)+1));
-            sentances[cnt] = (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(ptr)+1));
-            if (sentances[cnt]==NULL) exit(4);
-            wcscpy(sentances[cnt], ptr);
+            sentences[cnt] = NULL; (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(ptr)+1));
+            sentences[cnt] = (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(ptr)+1));
+            if (sentences[cnt]==NULL) exit(4);
+            wcscpy(sentences[cnt], ptr);
             ++cnt;
         }
         ptr = wcstok(NULL, tokens, &buff);
@@ -76,11 +76,11 @@ int tokenize(wchar_t ***results, wchar_t *str) {
     s_ptr_t = NULL;
     s_ptr_t = (wchar_t**) malloc(sizeof(wchar_t*)*cnt);
     if (s_ptr_t==NULL) exit(3);
-    memcpy(s_ptr_t, sentances, sizeof(wchar_t*)*cnt);
-    free(sentances);
-    sentances = s_ptr_t;
+    memcpy(s_ptr_t, sentences, sizeof(wchar_t*)*cnt);
+    free(sentences);
+    sentences = s_ptr_t;
     s_ptr_t = NULL;
-    *results = sentances;
+    *results = sentences;
     return cnt;
 }
 
@@ -99,10 +99,10 @@ void format_line(wchar_t *str) { // 假設輸入 str 只有一行內容
 int parse(void) {
     char filename[32];
     wchar_t *buffer = NULL, *ptr=NULL;
-    wchar_t **sentances = NULL;
+    wchar_t **sentences = NULL;
     FILE *fp = NULL;
     FILE *fout = NULL;
-    fout = fopen("sentances.txt", "wb");
+    fout = fopen("sentences.txt", "wb");
     news_record one_record;
     buffer = (wchar_t*)malloc(sizeof(wchar_t)*(buffer_limit+8));
     if (buffer==NULL) return -1;
@@ -126,13 +126,13 @@ int parse(void) {
             one_record.context = (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(buffer)+1));
             wcscpy(one_record.context, buffer);
             int s_cnt = 0;
-            s_cnt = tokenize(&sentances, one_record.context); // 這裡做斷句
+            s_cnt = tokenize(&sentences, one_record.context); // 這裡做斷句
             free(one_record.context); one_record.context=NULL;
             for (size_t i=0; i<s_cnt; ++i) {
-                fwprintf(fout, L"%ls\t%ls\t%ls\n", sentances[i], one_record.title, one_record.url); // 寫入句子到檔案
-                free(sentances[i]); sentances[i]=NULL;
+                fwprintf(fout, L"%ls\t%ls\t%ls\n", sentences[i], one_record.title, one_record.url); // 寫入句子到檔案
+                free(sentences[i]); sentences[i]=NULL;
             }
-            free(sentances); sentances=NULL;
+            free(sentences); sentences=NULL;
             free(one_record.url); one_record.url=NULL;
             free(one_record.title); one_record.title=NULL;
         }
