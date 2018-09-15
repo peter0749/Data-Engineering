@@ -14,18 +14,21 @@
                 $search_pattern = stripslashes($_GET["search"]);
             }
             $page = 0;
-            if (isset($_GET["page"]) && is_int($_GET["page"]) && $_GET["page"]>=0) {
+            if (isset($_GET["page"]) && $_GET["page"]>=0) {
                 $page = $_GET["page"];
             }
+            $page = preg_replace('/[^0-9]/', '', stripslashes($page));
             $start_row = $page * $page_max_row;
             $end_row = ($page+1) * $page_max_row;
             if (isset($_SESSION['search']) && $_SESSION['search']===$_GET['search'] && isset($_SESSION['tmp_result']) && file_exists($_SESSION['tmp_result'])) {
                 $tmp_result = $_SESSION['tmp_result'];
+                // echo "Prefetched";
             } else {
                 $tmp_result = tempnam("./tmp", "search_sentence_");
                 $command = "grep -P \"^" . $search_pattern . "[^\\t]*\" " . "dataset.txt > " . $tmp_result;
                 exec($command, $outputs, $return_status);
                 $_SESSION['tmp_result'] = $tmp_result;
+                $_SESSION['search'] = $search_pattern;
             }
 
             $handle = fopen($tmp_result, "r");
