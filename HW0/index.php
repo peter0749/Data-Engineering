@@ -29,10 +29,10 @@
             $end_row = ($page+1) * $page_max_row;
             if (isset($_SESSION['search']) && $_SESSION['search']===$_GET['search'] && isset($_SESSION['tmp_result']) && file_exists($_SESSION['tmp_result'])) {
                 $tmp_result = $_SESSION['tmp_result'];
-                // echo "Prefetched";
+                // echo $tmp_result;
             } else {
-                $tmp_result = tempnam("./tmp", "search_sentence_");
-                $command = "grep -P \"^" . $search_pattern . "[^\\t]*\" " . "dataset.txt > " . $tmp_result;
+                $tmp_result = tempnam("/tmp", "search_sentence_");
+                $command = "grep \"^" . $search_pattern . "\" ./dataset.txt > " . $tmp_result;
                 exec($command, $outputs, $return_status);
                 $_SESSION['tmp_result'] = $tmp_result;
                 $_SESSION['search'] = $search_pattern;
