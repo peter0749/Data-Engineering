@@ -98,10 +98,14 @@ parser 部分。先找到 `@GAISRec` 行，之後連續讀取四行，得到標�
 
 從讀擋到排序輸出大約 18 秒左右。
 
+### Demo 站
+
+[http://www2.cs.ccu.edu.tw/~cky104u/HW0/](http://www2.cs.ccu.edu.tw/~cky104u/HW0/)
+
 ### GitHub
 
 [https://github.com/peter0749/Data-Engineering/tree/master/HW0](https://github.com/peter0749/Data-Engineering/tree/master/HW0)
 
-### Demo (Youtube)
+### 操作 Demo (Youtube 影片)
 
 [https://www.youtube.com/watch?v=\_be3uvhgNlw](https://www.youtube.com/watch?v=_be3uvhgNlw)
