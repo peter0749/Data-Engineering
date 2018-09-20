@@ -102,3 +102,6 @@ parser 部分。先找到 `@GAISRec` 行，之後連續讀取四行，得到標�
 
 [https://github.com/peter0749/Data-Engineering/tree/master/HW0](https://github.com/peter0749/Data-Engineering/tree/master/HW0)
 
+### Demo (Youtube)
+
+[https://www.youtube.com/watch?v=\_be3uvhgNlw](https://www.youtube.com/watch?v=_be3uvhgNlw)
