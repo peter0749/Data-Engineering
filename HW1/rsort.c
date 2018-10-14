@@ -109,16 +109,10 @@ int reader(const char *filename, char ***results) {
                 rows=new_rows; new_rows=NULL;
             }
             record_strings = NULL;
-            if (rows_cnt==0) {
-                record_strings = (char*)malloc(sizeof(char)*(string_length+1));
-                memcpy(record_strings, buffer, sizeof(char)*string_length);
-                record_strings[string_length] = '\0';
-            } else {
-                record_strings = (char*)malloc(sizeof(char)*(delimiter_length+string_length+1));
-                memcpy(record_strings, parameters[0], sizeof(char)*delimiter_length);
-                memcpy(record_strings+delimiter_length, buffer, sizeof(char)*string_length);
-                record_strings[string_length+delimiter_length] = '\0';
-            }
+            record_strings = (char*)malloc(sizeof(char)*(string_length+1));
+            memcpy(record_strings, buffer, sizeof(char)*string_length);
+            record_strings[string_length] = '\0';
+            
             rows[rows_cnt++] = record_strings;
             buffer_cnt = 0; /* reset. read next record */
         }
@@ -152,9 +146,9 @@ int main(const int argc, const char **argv) {
     qsort((void*)records, records_cnt, sizeof(char*), comp); 
 
     for (i=0; i<records_cnt; ++i) {
+        fputs(parameters[0], stdout);
         fputs(records[i], stdout);
     }
-    fputs("\n",stdout);
 
     free(records); records=NULL;
     return 0;
