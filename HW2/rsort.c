@@ -82,6 +82,7 @@ int reader(const char *filename, char ***results) {
     int rows_cnt=0;
     int string_length=0;
     int delimiter_length = strlen(parameters[0]);
+    char has_head = 1;
     buffer = (char*)malloc(sizeof(char )*buffer_cap);
     rows   = (char**)malloc(sizeof(char*)*rows_cap);
     if (buffer==NULL||rows==NULL) {
@@ -114,9 +115,16 @@ int reader(const char *filename, char ***results) {
                 rows=new_rows; new_rows=NULL;
             }
             record_strings = NULL;
-            record_strings = (char*)malloc(sizeof(char)*(string_length+1));
-            memcpy(record_strings, buffer, sizeof(char)*string_length);
-            record_strings[string_length] = '\0';
+            if (rows_cnt==0 && (has_head = string_length > delimiter_length && strncmp(buffer, parameters[0], delimiter_length)==0)) {
+                string_length -= delimiter_length;
+                record_strings = (char*)malloc(sizeof(char)*(string_length+1));
+                memcpy(record_strings, buffer+delimiter_length, sizeof(char)*string_length);
+                record_strings[string_length] = '\0';
+            } else {
+                record_strings = (char*)malloc(sizeof(char)*(string_length+1));
+                memcpy(record_strings, buffer, sizeof(char)*string_length);
+                record_strings[string_length] = '\0';
+            }
             
             rows[rows_cnt++] = record_strings;
             buffer_cnt = 0; /* reset. read next record */
@@ -132,7 +140,7 @@ int reader(const char *filename, char ***results) {
 
     fclose(fp); fp=NULL;
     *results = rows;
-    return rows_cnt;
+    return has_head?rows_cnt:-rows_cnt;
 }
 
 int main(const int argc, const char **argv) {
@@ -140,20 +148,26 @@ int main(const int argc, const char **argv) {
     const char *filename=NULL;
     char **records = NULL;
     int records_cnt = 0;
+    char has_head = 1;
     if (argc<2) {
         fprintf(stderr, "Usage:\nrsort filename [-d delimeter | -k field | -n numeric comparison | -r reverse sort | -c case insensitive | -s size_sort ]\n");
         exit(2);
     }
     get_args(argc, argv, parameters, set_parameters);
     records_cnt = reader(argv[1], &records); /* need to free! */
-
+    if (records_cnt<0) {
+        records_cnt = -records_cnt;
+        has_head = 0;
+    } 
     /* now sort */
     qsort((void*)records, records_cnt, sizeof(char*), comp); 
 
     for (i=0; i<records_cnt; ++i) {
-        fputs(parameters[0], stdout);
+        if (i>0 || has_head)
+            fputs(parameters[0], stdout);
         fputs(records[i], stdout);
     }
+    fputs("\n", stdout);
 
     free(records); records=NULL;
     return 0;

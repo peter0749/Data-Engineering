@@ -3,12 +3,12 @@
 #include <string.h>
 #include <ctype.h>
 
-const char *parameter_patterns[5] = {"-d", "-k", "-c", "-r", "-n"};
+const char *parameter_patterns[6] = {"-d", "-k", "-c", "-r", "-n", "-s"};
 const char *default_args[2] = {
     "\n", "" /* -d, -k */
 };
 const char *parameters[2]; /* -d, -k */
-int set_parameters[3]={0}; /* -c, -r, -n */
+int set_parameters[4]={0}; /* -c, -r, -n, -s */
 
 int parse_parameter(const int argc, const char** args, const char* pattern) {
     int i=0;
@@ -25,13 +25,14 @@ void get_args(const int argc, const char** args, const char **parameters, int *s
      * -c case_insensitive
      * -r reverse order
      * -n numerical comparison
+     * -s size_sort
      */
     int i = 0, argspos=-1;
     for (i=0; i<2; ++i) {
         argspos = parse_parameter(argc, args, parameter_patterns[i]);
         parameters[i] = argspos<0?default_args[i]:args[argspos+1];
     }
-    for (i=0; i<3; ++i) {
+    for (i=0; i<4; ++i) {
         set_parameters[i] = parse_parameter(argc, args, parameter_patterns[i+2])<0?0:1;
     }
 }
@@ -41,19 +42,23 @@ int comp(const void *a, const void *b) {
     const char *c = *(const char**)a;
     const char *d = *(const char**)b;
     int val = 0;
-    if (parameters[1][0]!='\0') { /* has field */
-        /* not robust enough. need to handle more exceptions */
-        c = strstr(c, parameters[1]); /* jump to that field */
-        d = strstr(d, parameters[1]); /* ,, */
-    }
-    if (set_parameters[2]) { /* numerical comparison? */
-        while(c!=NULL&&*c!='\0'&&!isdigit(*c)) ++c;
-        while(d!=NULL&&*d!='\0'&&!isdigit(*d)) ++d;
-        e = atoi(c);
-        f = atoi(d);
-        val = e-f;
-    } else { /* lexical order */
-        val = set_parameters[0]?strcasecmp(c,d):strcmp(c,d); /* case insensitive? */
+    if ( set_parameters[3] ) { /* sort by "size" */
+        val = strlen(c) - strlen(d);
+    } else {
+        if (parameters[1][0]!='\0') { /* has field */
+            /* not robust enough. need to handle more exceptions */
+            c = strstr(c, parameters[1]); /* jump to that field */
+            d = strstr(d, parameters[1]); /* ,, */
+        }
+        if (set_parameters[2]) { /* numerical comparison? */
+            while(c!=NULL&&*c!='\0'&&!isdigit(*c)) ++c;
+            while(d!=NULL&&*d!='\0'&&!isdigit(*d)) ++d;
+            e = atoi(c);
+            f = atoi(d);
+            val = e-f;
+        } else { /* lexical order */
+            val = set_parameters[0]?strcasecmp(c,d):strcmp(c,d); /* case insensitive? */
+        }
     }
     return set_parameters[1]?-val:val; /* reverse order? */
 }
@@ -77,6 +82,7 @@ int reader(const char *filename, char ***results) {
     int rows_cnt=0;
     int string_length=0;
     int delimiter_length = strlen(parameters[0]);
+    char has_head = 1;
     buffer = (char*)malloc(sizeof(char )*buffer_cap);
     rows   = (char**)malloc(sizeof(char*)*rows_cap);
     if (buffer==NULL||rows==NULL) {
@@ -109,9 +115,16 @@ int reader(const char *filename, char ***results) {
                 rows=new_rows; new_rows=NULL;
             }
             record_strings = NULL;
-            record_strings = (char*)malloc(sizeof(char)*(string_length+1));
-            memcpy(record_strings, buffer, sizeof(char)*string_length);
-            record_strings[string_length] = '\0';
+            if (rows_cnt==0 && (has_head = string_length > delimiter_length && strncmp(buffer, parameters[0], delimiter_length)==0)) {
+                string_length -= delimiter_length;
+                record_strings = (char*)malloc(sizeof(char)*(string_length+1));
+                memcpy(record_strings, buffer+delimiter_length, sizeof(char)*string_length);
+                record_strings[string_length] = '\0';
+            } else {
+                record_strings = (char*)malloc(sizeof(char)*(string_length+1));
+                memcpy(record_strings, buffer, sizeof(char)*string_length);
+                record_strings[string_length] = '\0';
+            }
             
             rows[rows_cnt++] = record_strings;
             buffer_cnt = 0; /* reset. read next record */
@@ -127,7 +140,7 @@ int reader(const char *filename, char ***results) {
 
     fclose(fp); fp=NULL;
     *results = rows;
-    return rows_cnt;
+    return has_head?rows_cnt:-rows_cnt;
 }
 
 int main(const int argc, const char **argv) {
@@ -135,20 +148,26 @@ int main(const int argc, const char **argv) {
     const char *filename=NULL;
     char **records = NULL;
     int records_cnt = 0;
+    char has_head = 1;
     if (argc<2) {
-        fprintf(stderr, "Usage:\nrsort filename [-d delimeter | -k field | -n numeric comparison | -r reverse sort | -c case insensitive]\n");
+        fprintf(stderr, "Usage:\nrsort filename [-d delimeter | -k field | -n numeric comparison | -r reverse sort | -c case insensitive | -s size_sort ]\n");
         exit(2);
     }
     get_args(argc, argv, parameters, set_parameters);
     records_cnt = reader(argv[1], &records); /* need to free! */
-
+    if (records_cnt<0) {
+        records_cnt = -records_cnt;
+        has_head = 0;
+    } 
     /* now sort */
     qsort((void*)records, records_cnt, sizeof(char*), comp); 
 
     for (i=0; i<records_cnt; ++i) {
-        fputs(parameters[0], stdout);
+        if (i>0 || has_head)
+            fputs(parameters[0], stdout);
         fputs(records[i], stdout);
     }
+    fputs("\n", stdout);
 
     free(records); records=NULL;
     return 0;
