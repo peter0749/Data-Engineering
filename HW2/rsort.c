@@ -4,7 +4,6 @@
 #include <ctype.h>
 
 typedef struct {
-    size_t n_record; /* Total number of records. */
     size_t n_chunk;  /* Total number of chunks. */
     char has_head;   /* Data has head */
     FILE **temp_fp;  /* split data file pointer. (# = n_chunk) */
@@ -66,8 +65,12 @@ int comp(const void *a, const void *b) {
             d = strstr(d, parameters[1]); /* ,, */
         }
         if (set_parameters[2]) { /* numerical comparison? */
-            while(c!=NULL&&*c!='\0'&&!isdigit(*c)) ++c;
-            while(d!=NULL&&*d!='\0'&&!isdigit(*d)) ++d;
+            val = 0;
+            while(c!=NULL&&*c!='\0'&&!isdigit(*c)) ++c, ++val;
+            if (val>0 && *(c-1)=='-') --c;
+            val = 0;
+            while(d!=NULL&&*d!='\0'&&!isdigit(*d)) ++d, ++val;
+            if (val>0 && *(d-1)=='-') --d;
             e = atoi(c);
             f = atoi(d);
             val = e-f;
@@ -76,6 +79,13 @@ int comp(const void *a, const void *b) {
         }
     }
     return set_parameters[1]?-val:val; /* reverse order? */
+}
+
+int comp_record(const record_struct *a, const record_struct *b) {
+    /* precidition: a or b as data */
+    if (a->n_record==0) return  1;
+    if (b->n_record==0) return -1;
+    return comp(a->data, b->data);
 }
 
 void writeout(FILE *fp, char **row, const unsigned long records_cnt, const char write_head) {
@@ -87,9 +97,6 @@ void writeout(FILE *fp, char **row, const unsigned long records_cnt, const char 
         }
         fputs(row[i], fp);
     }
-    fputs("\n", fp);
-    if (fp!=stdout && fp!=NULL) fclose(fp);
-    fp = NULL;
 }
 
 void cleanup_split_sort_handle(split_sort_handler *h) {
@@ -178,7 +185,8 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
         if (results!=NULL && (mem_use>=buffer_limit || ch==EOF)) { /* write file */
             qsort((void*)rows, rows_cnt, sizeof(char*), comp);  /* now sort this portion */
             FILE *temp = tmpfile(); /* w+ mode */
-            writeout(temp, rows, rows_cnt, 0); /* not write first delimeter to save memory */
+            writeout(temp, rows, rows_cnt, 0); /* write first delimeter */
+            fputs("\n", temp);
             fseek(temp, 0, SEEK_SET); /* move to begining of the file */
             /* remember filepaths */
             if (tmp_fp_cnt==tmp_fp_cap) {
@@ -202,7 +210,6 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
             rows[i]=NULL;
         }
         free(rows); rows=NULL;
-        results->n_record = rows_cnt;
         results->n_chunk  = tmp_fp_cnt;
         results->has_head = has_head;
         results->temp_fp  = tmp_fp;
@@ -212,6 +219,95 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
         records->has_head = has_head;
     }
 #undef GROW
+}
+
+void merge_and_out(split_sort_handler *handler) {
+#define LCH(X) ((X<<1)+1)
+#define RCH(X) ((X<<1)+2)
+#define PAR(X) ((X-1)>>1)
+    /* precondition: every file pointer points to the beginning of each file */
+    char complete_bt = (handler->n_chunk&1);  /* is complete binary tree */
+    unsigned long node_num = 2 * (handler->n_chunk + (complete_bt==0?1:0)) - 1;   /* # of nodes (if not complete. add a dummy node) */
+    unsigned long i=0;
+    unsigned long *nodes = NULL;
+    unsigned long K = handler->n_chunk;
+    unsigned long hidden_nodes=0;
+    FILE *out_fp = stdout;
+    if (parameters[3]!=NULL) {
+        out_fp = fopen(parameters[3], "w");
+        if (out_fp==NULL) exit(5);
+    }
+    record_struct *records = NULL;
+    nodes = (unsigned long*)malloc(sizeof(unsigned long)*node_num);
+    if (nodes==NULL) exit(3);
+    memset(nodes, 0xFF, sizeof(unsigned long)*node_num); /* set infinity (kinda) */
+
+    records = (record_struct*)malloc(sizeof(record_struct)*K);
+    if (records==NULL) exit(4);
+    
+    for (i=0; i<K; ++i) split_sort(handler->temp_fp[i], NULL, records+i, 1); /* read first K first elements */
+
+    if (!complete_bt) { /* if not strictly complete */
+        --node_num; /* hide dummy node */
+    }
+
+    hidden_nodes = node_num - K;
+#define NI2KI(X) (X-hidden_nodes)
+#define KI2NI(X) (X+hidden_nodes)
+    for (i=hidden_nodes; i<node_num; ++i) nodes[i] = NI2KI(i); /* initalize leaf nodes */
+
+    /* initialize root and hidden node */
+    for (i=node_num-1; i>0; --i) { /* zero based */
+        unsigned long p  = nodes[PAR(i)];
+        unsigned long ch = nodes[i];
+        if( p >= K || comp_record( records+p, records+ch )>0 ) { /* if parent is not initialized or is bigger */
+            nodes[PAR(i)] = nodes[i]; /* update */
+        }
+    }
+
+    char first=1;
+    for(;;) { /* while top element is non-empty */
+        if (records[nodes[0]].n_record==0) break; 
+        writeout(out_fp, records[nodes[0]].data, 1, first?handler->has_head:1);
+        cleanup_record_struct(records+nodes[0]); /* pop current data */
+        first=0;
+        split_sort(handler->temp_fp[ nodes[0] ], NULL, records+nodes[0], 1); /* read new data from disk */
+#ifndef DEBUG
+        unsigned long ni = KI2NI( nodes[0] );
+        while (ni!=0) { /* until reach root */
+            unsigned long pa = PAR(ni);
+            unsigned long lch = LCH(pa);
+            unsigned long rch = RCH(pa);
+            ni = lch; /* assume that lch is smaller */
+            if ( rch<node_num && comp_record( records+nodes[lch], records+nodes[rch] ) > 0 ) { /* right child exists and smaller than left child */
+                ni = rch; /* change to rch */
+            }
+            nodes[pa] = nodes[ni]; /* update */
+            ni = pa; /* bottom up */
+        }
+#else
+        for (i=node_num-1; i>0; --i) { /* zero based */
+            unsigned long p  = nodes[PAR(i)];
+            unsigned long ch = nodes[i];
+            if( comp_record( records+p, records+ch )>0 ) { /* if parent is not initialized or is bigger */
+                nodes[PAR(i)] = nodes[i]; /* update */
+            }
+        }
+#endif
+    }
+
+    free(nodes); nodes=NULL;
+    for (i=0; i<K; ++i) cleanup_record_struct(records+i);
+    free(records);
+    records=NULL;
+    fputs("\n", out_fp);
+    if (out_fp!=NULL && out_fp!=stdout) fclose(out_fp);
+    out_fp=NULL;
+#undef KI2NI
+#undef NI2KI
+#undef LCH
+#undef RCH
+#undef PAR
 }
 
 int main(const int argc, const char **argv) {
@@ -227,18 +323,9 @@ int main(const int argc, const char **argv) {
     }
     get_args(argc, argv, parameters, set_parameters);
     fp = fopen(argv[1], "r");
-    split_sort(fp, NULL, &records, 3);
-    writeout(stdout, records.data, records.n_record, records.has_head);
-    cleanup_record_struct(&records);
-    split_sort(fp, NULL, &records, 3);
-    writeout(stdout, records.data, records.n_record, records.has_head);
-    cleanup_record_struct(&records);
+    split_sort(fp, &handle, &records, -1);
     fclose(fp); fp=NULL;
-
-    fp = fopen(argv[1], "r");
-    split_sort(fp, NULL, &records, 6);
-    writeout(stdout, records.data, records.n_record, records.has_head);
-    cleanup_record_struct(&records);
-    fclose(fp); fp=NULL;
+    merge_and_out(&handle);
+    cleanup_split_sort_handle(&handle);
     return 0;
 }
