@@ -272,7 +272,6 @@ void merge_and_out(split_sort_handler *handler) {
         cleanup_record_struct(records+nodes[0]); /* pop current data */
         first=0;
         split_sort(handler->temp_fp[ nodes[0] ], NULL, records+nodes[0], 1); /* read new data from disk */
-#ifndef DEBUG
         unsigned long ni = KI2NI( nodes[0] );
         while (ni!=0) { /* until reach root */
             unsigned long pa = PAR(ni);
@@ -285,15 +284,6 @@ void merge_and_out(split_sort_handler *handler) {
             nodes[pa] = nodes[ni]; /* update */
             ni = pa; /* bottom up */
         }
-#else
-        for (i=node_num-1; i>0; --i) { /* zero based */
-            unsigned long p  = nodes[PAR(i)];
-            unsigned long ch = nodes[i];
-            if( comp_record( records+p, records+ch )>0 ) { /* if parent is not initialized or is bigger */
-                nodes[PAR(i)] = nodes[i]; /* update */
-            }
-        }
-#endif
     }
 
     free(nodes); nodes=NULL;
