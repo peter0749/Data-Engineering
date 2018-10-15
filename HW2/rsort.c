@@ -62,7 +62,9 @@ int comp(const void *a, const void *b) {
         if (parameters[1]!=NULL) { /* has field */
             /* not robust enough. need to handle more exceptions */
             c = strstr(c, parameters[1]); /* jump to that field */
+            if (c==NULL) return -1;
             d = strstr(d, parameters[1]); /* ,, */
+            if (d==NULL) return  1;
         }
         if (set_parameters[2]) { /* numerical comparison? */
             val = 0;
@@ -139,12 +141,12 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
     unsigned long buffer_cnt=0;
     unsigned long rows_cap=1024;
     unsigned long rows_cnt=0;
-    unsigned long mem_use=0;
+    unsigned long long mem_use=0;
     unsigned long chunk_n=0;
     int string_length=0;
     unsigned long delimiter_length = strlen(parameters[0]);
     char has_head = 2;
-    const unsigned long buffer_limit = atol(parameters[2]) * (1uL<<20); /* KB=2^10, MB=2^20 */
+    const unsigned long long buffer_limit = atoll(parameters[2]) * (1uLL<<20uLL); /* KB=2^10, MB=2^20 */
     buffer = (char*)malloc(sizeof(char )*buffer_cap);
     rows   = (char**)malloc(sizeof(char*)*rows_cap);
     tmp_fp = (FILE**)malloc(sizeof(FILE*)*tmp_fp_cap);
@@ -180,7 +182,7 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
             }
             rows[rows_cnt++] = record_strings;
             buffer_cnt = 0; /* reset. read next record */
-            mem_use += sizeof(char)*(string_length+1);
+            mem_use += (unsigned long long)(sizeof(char)*(string_length+1));
         }
         if (results!=NULL && (mem_use>=buffer_limit || ch==EOF)) { /* write file */
             qsort((void*)rows, rows_cnt, sizeof(char*), comp);  /* now sort this portion */
