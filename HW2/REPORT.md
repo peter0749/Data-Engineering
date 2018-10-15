@@ -1,105 +1,170 @@
-### 資料工程 HW1
+# 資料工程 HW1
 
 404410030 資工四 鄭光宇
 
-### 系統需求
+# 系統需求
 
 要執行這支程式，系統必須具備：
 
-- 支援 ANSI C 的 gcc
-- make 指令
+ - 支援 ANSI C 的 gcc
+ - make 工具程式
 
-### 如何編譯
-
-在專案目錄下輸入指令：
+# 編譯
 
 ```
 make
 ```
 
-### 如何執行
-
-同作業要求
+# 執行
 
 ```
-rsort 檔名 [參數]
+./rsort filename [-d delimeter | -k field | -m memory_limit | -f output_filename (o.w. stdout) | -n (set numeric comparison) | -r (set reverse sort) | -c  (set case insensitive) | -s (set size_sort) ]
 ```
 
-![](https://i.imgur.com/r9LtuSh.png)
+延續上次作業要求，另外新增了 `-s` 照資料大小排序。
 
 `-d` 是分隔符號，`-k` 是要作為 key 的 pattern
 
-而 `-c` 是不區分大小寫、`-n` 使用數值排序、`-r` 倒序（降序）排序
+而 `-c` 是不區分大小寫、`-n` 使用數值排序、`-r` 倒序（降序）排序。
 
-### 實作部分
+最重要的，`-m` 限制大約使用多少 MB 的記憶體做內部排序。
 
-#### 前置處理
+# 資料
 
-先合併檔
+先將助教提供的檔案，合成一個大的 `full_data.rec` 檔
 
-![](https://i.imgur.com/rrFMutd.png)
+檔案大小 17GB 左右
 
-#### 主函數部份
+## 觀察
 
-讀取執行參數、讀檔、斷行、排序、輸出
+![](https://i.imgur.com/mL6bMDa.png)
 
-![](https://i.imgur.com/cRPY2mn.png)
+資料似乎是以 `_\n@` 的方式分隔（`_`為空格）
 
-讀檔部份跟前一次作業類似，就不放上來了
+所以之後都使用這個分隔方式處理資料
 
-#### 讀取參數部份
+## 實作
 
-![](https://i.imgur.com/taeJSQo.png)
+下面列出一些主要的程式碼
 
-簡單解析從 main function 傳入的 argv 裏面的參數
+### 讀參數
 
-`-d`, `-k` 後方需要接一個字串，其他3個參數則不需要輸入內容
+跟上一次內部排序用一樣的程式碼
 
-#### 排序用的比較函數
+![](https://i.imgur.com/oCsJLJF.png)
 
-![](https://i.imgur.com/ERKiCIu.png)
+### 資料間的比較函式
 
-同作業要求，實作了依照 `-k` 為key值排序、依照 `-n` 決定是否為數值排序、依照 `-c` 決定是否區分大小寫、依照 `-r` 決定是否降序排序。
+![](https://i.imgur.com/qv6GUxs.png)
 
-### 實驗
+針對各種參數有不同的比較方式
 
-使用上次作業的資料集的合併檔
+### 檔案寫出
 
-#### 照文章標題排序
+![](https://i.imgur.com/o354Hyu.png)
 
-![](https://i.imgur.com/s9aM8V4.png)
-![](https://i.imgur.com/0rnqdKB.png)
+### 讀檔/排序/分割檔/寫出
 
-花費時間約為18秒
+逐漸讀入檔案，每到了指定的記憶體容量限制，就寫出一個 chunk 到硬碟中、清除記憶體、記錄增加的 chunck 數並記錄他們寫入的路徑。這個函數可以指定要讀多少筆資料，可以協助後面 external sort 的 merge 階段。
 
-#### 照URL中的編號排序
+![](https://i.imgur.com/wK5EYWq.png)
 
-升序
+![](https://i.imgur.com/j0XUSmU.png)
 
-![](https://i.imgur.com/2Bp8TNm.png)
+![](https://i.imgur.com/K0rO8Uv.png)
 
-降序
+![](https://i.imgur.com/tFvF0Ph.png)
 
-![](https://i.imgur.com/1CXPECJ.png)
+### K-way merge
 
-#### 其他實驗
+每個 queue 為上個階段已排序的 chunk，我們利用 Winner-Tree 維護所有 queue 中最小的值。並且在每次查詢 $O(1)$ ，每次更新 $O(K)$ 的複雜度下，不斷從 Winner-Tree 頂端 pop 出最小值，這些 pop 出來的資料會循序寫入到檔案，這樣就可以得到已經排序的文件。
 
-數字排序
+Winner-Tree 的初始化方式（使用 array 實作）：
 
-![](https://i.imgur.com/KaNyhQL.png)
+1. 初始化所有點為無限大
+2. 將所有 queue 的第一個元素放在 Winner-Tree 的 leaf 上（array 尾端）
+3. 由於 Winner-Tree 是 (nearly) Complete Binary Tree，從 array 最尾端往開頭走訪，過程中每次檢查如果自己的數值比 parent 小，就將 parent 更新。
 
-大小寫字母排序
+Winner-True 的更新方式簡單來說：
 
-![](https://i.imgur.com/A1Pcq0X.png)
+1. 從頂端 pop 出 key 最小值
+2. 從最小值對應回的那個 queue 再讀一筆資料。若資料為空，讀入資料的節點大小為無限大。
+3. 走訪到自己的 parent，從 parent 看兩個 child 哪個小，哪個提上去到 parent 的位置。重複步驟直到走到 root ，一次更新的操作就完成了。
 
-### 總結
+不斷重複 pop 最小值，直到所有 queue 為空（此時 Winner-Tree 頂端也為空）。完成外部排序。
 
-程式行為符合預期，如果是針對數字就必須使用數值排序。
+![](https://i.imgur.com/O48WOuB.png)
 
-不然預設就是字典序，這點可以從 `3333 44 444 55` 和 `7 44 55 111 ... 3333` 兩種排序看出來。 `-n` 這個選項是方便的功能。
+![](https://i.imgur.com/rR0Clvb.png)
+
+![](https://i.imgur.com/wLRVwSA.png)
+
+### 主函式部分
+
+![](https://i.imgur.com/qe78C4b.png)
+
+# 實驗
+
+## 照資料大小排序（`-s` 模式）
+
+
+![](https://i.imgur.com/BiydUrO.png)
+
+
+![](https://i.imgur.com/nm1JueC.png)
+
+![](https://i.imgur.com/pJt7t6K.png)
+
+可以看出最大的一筆資料因為沒有恰當的 `_\n@` 分隔
+
+排序大約花費 7 分鐘左右
+
+## 字典序（預設模式）
+
+字典序排出來看起來很亂，這裡指附上執行時間供參考
+
+![](https://i.imgur.com/m7aSVLG.png)
+
+## 時間序（照發佈時間的字串排序）
+
+![](https://i.imgur.com/DdyCg8i.png)
+
+![](https://i.imgur.com/s97j8mB.png)
+
+![](https://i.imgur.com/PfI6qwV.png)
+
+可以看出成功照日期排序，`2017年8月9日`排在一起了
+
+排序大約 7min
+
+## 驗證程式碼正確性
+
+生成 `1000000` 個隨機整數（約 5.7MB）
+
+```
+for ((i=0; i<1000000; ++i)); do echo $RANDOM >> random_numbers; done 
+```
+
+使用 `sort` 排序，作為標準答案
+
+```
+sort random_numbers -n > gt
+```
+
+使用 `rsort` 進行排序（用很小的 buffer size，為了驗證 k-way merge 能正常工作）
+```
+./rsort random_numbers -n -m 1 -f pred
+```
+
+比較兩者結果，沒報錯答案就是一樣
+
+```
+diff gt pred -q
+```
+
+![](https://i.imgur.com/mDEealr.png)
 
 
 ### GitHub
 
-[https://github.com/peter0749/Data-Engineering/tree/master/HW1](https://github.com/peter0749/Data-Engineering/tree/master/HW1)
-
+程式碼：[rsort.c](https://github.com/peter0749/Data-Engineering/blob/master/HW2/rsort.c)
