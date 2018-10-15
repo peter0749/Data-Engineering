@@ -101,7 +101,16 @@ void cleanup_split_sort_handle(split_sort_handler *h) {
     free(h->temp_fp); h->temp_fp=NULL;
 }
 
-void split_sort(const char *filename, split_sort_handler *results, record_struct *records) {
+void cleanup_record_struct(record_struct *r) {
+    size_t i=0;
+    if (r==NULL) return;
+    for (i=0; i<r->n_record; ++i) {
+        free(r->data[i]); r->data[i]=NULL;
+    }
+    free(r->data);
+}
+
+void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, int max_rec) {
 #define GROW(X, X_new, cap, cnt, type)  { cap *= 2; \
     X_new = NULL; \
     X_new = (type*)malloc(sizeof(type)*cap); \
@@ -110,13 +119,8 @@ void split_sort(const char *filename, split_sort_handler *results, record_struct
     X=X_new; X_new=NULL; }
     unsigned long i=0;
     char ch=0;
-    FILE *fp=NULL, *temp=NULL;
+    FILE *temp=NULL;
     if (results==NULL && records==NULL) return;
-    fp = fopen(filename, "r");
-    if (fp==NULL) {
-        fprintf(stderr, "Couldn't open file %s\n", filename);
-        exit(2);
-    }
 
     char *buffer=NULL, *new_buffer=NULL;
     char **rows=NULL, **new_rows=NULL;
@@ -143,7 +147,7 @@ void split_sort(const char *filename, split_sort_handler *results, record_struct
     }
 
     for(;;) {
-        ch = fgetc(fp);
+        ch = (max_rec>0 && rows_cnt>=max_rec)?EOF:fgetc(fp);
         if (buffer_cnt+1==buffer_cap) {
             GROW(buffer, new_buffer, buffer_cap, buffer_cnt, char);
         }
@@ -191,7 +195,6 @@ void split_sort(const char *filename, split_sort_handler *results, record_struct
         if (ch==EOF) break; 
     }
     free(buffer); buffer=NULL;
-    fclose(fp); fp=NULL;
 
     if (results!=NULL) {
         for (i=0; i<rows_cnt; ++i) {
@@ -212,7 +215,7 @@ void split_sort(const char *filename, split_sort_handler *results, record_struct
 
 int main(const int argc, const char **argv) {
     int i=0;
-    const char *filename=NULL;
+    FILE *fp=NULL;
     int records_cnt = 0;
     char has_head = 1;
     split_sort_handler handle;
@@ -222,13 +225,19 @@ int main(const int argc, const char **argv) {
         exit(2);
     }
     get_args(argc, argv, parameters, set_parameters);
-    /* split_sort(argv[1], NULL, &records);
-     * writeout(stdout, records.data, records.n_record, records.has_head);
-     * */
-    /* split_sort(argv[1], &handle, NULL);  
-     * cleanup_split_sort_handle(&handle); 
-     * */
-    split_sort(argv[1], NULL, &records);
+    fp = fopen(argv[1], "r");
+    split_sort(fp, NULL, &records, 3);
     writeout(stdout, records.data, records.n_record, records.has_head);
+    cleanup_record_struct(&records);
+    split_sort(fp, NULL, &records, 3);
+    writeout(stdout, records.data, records.n_record, records.has_head);
+    cleanup_record_struct(&records);
+    fclose(fp); fp=NULL;
+
+    fp = fopen(argv[1], "r");
+    split_sort(fp, NULL, &records, 6);
+    writeout(stdout, records.data, records.n_record, records.has_head);
+    cleanup_record_struct(&records);
+    fclose(fp); fp=NULL;
     return 0;
 }
