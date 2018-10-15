@@ -211,6 +211,7 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
         records->data = rows;
         records->has_head = has_head;
     }
+#undef GROW
 }
 
 int main(const int argc, const char **argv) {
