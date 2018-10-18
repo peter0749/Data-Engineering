@@ -149,6 +149,12 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
     memcpy(X_new, X, sizeof(type)*cnt); \
     free(X); \
     X=X_new; X_new=NULL; }
+#define GROW_ALIGN(X, X_new, cap, cnt, type)  { cap *= 2; \
+    X_new = NULL; \
+    X_new = (type*)aligned_alloc(sizeof(type), sizeof(type)*cap); \
+    memcpy(X_new, X, sizeof(type)*cnt); \
+    free(X); \
+    X=X_new; X_new=NULL; }
     unsigned long i=0;
     char ch=0;
     FILE *temp=NULL;
@@ -172,8 +178,8 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
     unsigned long delimiter_length = strlen(parameters[0]);
     char has_head = 2;
     const unsigned long long buffer_limit = atoll(parameters[2]) * (1uLL<<20uLL); /* KB=2^10, MB=2^20 */
-    buffer = (char*)malloc(sizeof(char )*buffer_cap);
-    rows   = (char**)malloc(sizeof(char*)*rows_cap);
+    buffer = (char*)aligned_alloc(sizeof(char), sizeof(char )*buffer_cap);
+    rows   = (char**)aligned_alloc(sizeof(char*), sizeof(char*)*rows_cap);
     tmp_fp = (FILE**)malloc(sizeof(FILE*)*tmp_fp_cap);
     if (buffer==NULL||rows==NULL||tmp_fp==NULL) {
         fprintf(stderr, "Couldn't allocate more memory\n");
@@ -183,7 +189,7 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
     for(;;) {
         ch = (max_rec>0 && rows_cnt>=max_rec)?EOF:fgetc(fp);
         if (buffer_cnt+1==buffer_cap) {
-            GROW(buffer, new_buffer, buffer_cap, buffer_cnt, char);
+            GROW_ALIGN(buffer, new_buffer, buffer_cap, buffer_cnt, char);
         }
         if (ch!=EOF) {
             buffer[buffer_cnt++] = ch;
@@ -192,16 +198,16 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
         string_length = buffer_cnt - delimiter_length;
         if(string_length>0 && (ch==EOF || strncmp(buffer+string_length, parameters[0], delimiter_length)==0)) { /* new record */
             if (rows_cnt==rows_cap) {
-                GROW(rows, new_rows, rows_cap, rows_cnt, char* );
+                GROW_ALIGN(rows, new_rows, rows_cap, rows_cnt, char* );
             }
             record_strings = NULL;
             if (has_head==2 && (has_head = string_length > delimiter_length && strncmp(buffer, parameters[0], delimiter_length)==0)) {
                 string_length -= delimiter_length;
-                record_strings = (char*)malloc(sizeof(char)*(string_length+1));
+                record_strings = (char*)aligned_alloc(sizeof(char), sizeof(char)*(string_length+1));
                 memcpy(record_strings, buffer+delimiter_length, sizeof(char)*string_length);
                 record_strings[string_length] = '\0';
             } else {
-                record_strings = (char*)malloc(sizeof(char)*(string_length+1));
+                record_strings = (char*)aligned_alloc(sizeof(char), sizeof(char)*(string_length+1));
                 memcpy(record_strings, buffer, sizeof(char)*string_length);
                 record_strings[string_length] = '\0';
             }
@@ -249,7 +255,7 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
             assert(pthread_create(sort_thread, NULL, msort_wrapper, (void*)msort_args)==0); /*now sort*/
             /* sort in backgraound. continue to read file */
             
-            rows = (char**)malloc(sizeof(char*)*rows_cap);
+            rows = (char**)aligned_alloc(sizeof(char*), sizeof(char*)*rows_cap);
             rows_cnt = 0;
             mem_use = 0;
         }
@@ -312,11 +318,11 @@ void merge_and_out(split_sort_handler *handler) {
         if (out_fp==NULL) exit(5);
     }
     record_struct *records = NULL;
-    nodes = (unsigned long*)malloc(sizeof(unsigned long)*node_num);
+    nodes = (unsigned long*)aligned_alloc(sizeof(unsigned long ), sizeof(unsigned long)*node_num);
     if (nodes==NULL) exit(3);
     memset(nodes, 0xFF, sizeof(unsigned long)*node_num); /* set infinity (kinda) */
 
-    records = (record_struct*)malloc(sizeof(record_struct)*K);
+    records = (record_struct*)aligned_alloc(sizeof(record_struct)+sizeof(record_struct)%4, sizeof(record_struct)*K);
     if (records==NULL) exit(4);
     
     for (i=0; i<K; ++i) split_sort(handler->temp_fp[i], NULL, records+i, 1); /* read first K first elements */
