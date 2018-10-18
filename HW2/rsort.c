@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <ctype.h>
 #include <assert.h>
 #include "msort.h"
@@ -314,7 +315,7 @@ void merge_and_out(split_sort_handler *handler) {
     unsigned long hidden_nodes=0;
     FILE *out_fp = stdout;
     if (parameters[3]!=NULL) {
-        out_fp = fopen(parameters[3], "w");
+        out_fp = fopen(parameters[3], "wb");
         if (out_fp==NULL) exit(5);
     }
     record_struct *records = NULL;
@@ -380,6 +381,16 @@ void merge_and_out(split_sort_handler *handler) {
 #undef PAR
 }
 
+int check_exist(const char *p) {
+    FILE *f=NULL;
+    f = fopen(p, "rb");
+    if (f==NULL) return 0;
+    else {
+        fclose(f);
+        return 1;
+    }
+}
+
 int main(const int argc, const char **argv) {
     int i=0;
     FILE *fp=NULL;
@@ -387,12 +398,13 @@ int main(const int argc, const char **argv) {
     char has_head = 1;
     split_sort_handler handle;
     record_struct records;
-    if (argc<2) {
+    if (argc==2 && strncmp("--help", argv[1], 6)) {
         fprintf(stderr, "Usage:\nrsort filename [-d delimeter | -k field | -m memory_limit | -f output_filename (o.w. stdout) | -j n_jobs (number of cpu?) | -n (set numeric comparison) | -r (set reverse sort) | -c  (set case insensitive) | -s (set size_sort) ]\n");
-        exit(2);
+        return 0;
     }
     get_args(argc, argv, parameters, set_parameters);
-    fp = fopen(argv[1], "r");
+    if (argc<2 || !check_exist(argv[1]) ) fp=stdin;
+    else fp = fopen(argv[1], "rb");
     split_sort(fp, &handle, &records, -1);
     fclose(fp); fp=NULL;
     merge_and_out(&handle);
