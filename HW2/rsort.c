@@ -398,7 +398,7 @@ int main(const int argc, const char **argv) {
     char has_head = 1;
     split_sort_handler handle;
     record_struct records;
-    if (argc==2 && strncmp("--help", argv[1], 6)) {
+    if (argc==2 && strncmp("--help", argv[1], 6)==0) {
         fprintf(stderr, "Usage:\nrsort filename [-d delimeter | -k field | -m memory_limit | -f output_filename (o.w. stdout) | -j n_jobs (number of cpu?) | -n (set numeric comparison) | -r (set reverse sort) | -c  (set case insensitive) | -s (set size_sort) ]\n");
         return 0;
     }
