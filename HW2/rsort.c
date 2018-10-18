@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <ctype.h>
+#ifdef __APPLE__
+#define aligned_alloc(X,Y) valloc(Y)
+#endif
 
 typedef struct {
     size_t n_chunk;  /* Total number of chunks. */
@@ -15,12 +19,15 @@ typedef struct {
     char has_head;
 } record_struct;
 
+typedef int (*lexical_cmp)(const char*, const char*);
+
 const char *parameter_patterns[8] = {"-d", "-k", "-m", "-f", "-c", "-r", "-n", "-s"};
 const char *default_args[4] = {
     "\n", NULL, "100", NULL /* -d, -k, -m, -f */
 };
 const char *parameters[4]; /* -d, -k, -m, -f */
 int set_parameters[4]={0}; /* -c, -r, -n, -s */
+lexical_cmp lex = NULL;
 
 int parse_parameter(const int argc, const char** args, const char* pattern) {
     int i=0;
@@ -49,6 +56,7 @@ void get_args(const int argc, const char** args, const char **parameters, int *s
     for (i=0; i<4; ++i) {
         set_parameters[i] = parse_parameter(argc, args, parameter_patterns[i+4])<0?0:1;
     }
+    lex = set_parameters[0]?strcasecmp:strcmp;
 }
 
 int comp(const void *a, const void *b) {
@@ -77,7 +85,7 @@ int comp(const void *a, const void *b) {
             f = atoi(d);
             val = e-f;
         } else { /* lexical order */
-            val = set_parameters[0]?strcasecmp(c,d):strcmp(c,d); /* case insensitive? */
+            return lex(c,d);
         }
     }
     return set_parameters[1]?-val:val; /* reverse order? */
@@ -126,6 +134,12 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
     memcpy(X_new, X, sizeof(type)*cnt); \
     free(X); \
     X=X_new; X_new=NULL; }
+#define GROW_ALIGN(X, X_new, cap, cnt, type)  { cap *= 2; \
+    X_new = NULL; \
+    X_new = (type*)aligned_alloc(sizeof(type), sizeof(type)*cap); \
+    memcpy(X_new, X, sizeof(type)*cnt); \
+    free(X); \
+    X=X_new; X_new=NULL; }
     unsigned long i=0;
     char ch=0;
     FILE *temp=NULL;
@@ -147,8 +161,8 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
     unsigned long delimiter_length = strlen(parameters[0]);
     char has_head = 2;
     const unsigned long long buffer_limit = atoll(parameters[2]) * (1uLL<<20uLL); /* KB=2^10, MB=2^20 */
-    buffer = (char*)malloc(sizeof(char )*buffer_cap);
-    rows   = (char**)malloc(sizeof(char*)*rows_cap);
+    buffer = (char*)aligned_alloc(sizeof(char), sizeof(char)*buffer_cap);
+    rows   = (char**)aligned_alloc(sizeof(char*), sizeof(char*)*rows_cap);
     tmp_fp = (FILE**)malloc(sizeof(FILE*)*tmp_fp_cap);
     if (buffer==NULL||rows==NULL||tmp_fp==NULL) {
         fprintf(stderr, "Couldn't allocate more memory\n");
@@ -158,7 +172,7 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
     for(;;) {
         ch = (max_rec>0 && rows_cnt>=max_rec)?EOF:fgetc(fp);
         if (buffer_cnt+1==buffer_cap) {
-            GROW(buffer, new_buffer, buffer_cap, buffer_cnt, char);
+            GROW_ALIGN(buffer, new_buffer, buffer_cap, buffer_cnt, char);
         }
         if (ch!=EOF) {
             buffer[buffer_cnt++] = ch;
@@ -167,16 +181,16 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
         string_length = buffer_cnt - delimiter_length;
         if(string_length>0 && (ch==EOF || strncmp(buffer+string_length, parameters[0], delimiter_length)==0)) { /* new record */
             if (rows_cnt==rows_cap) {
-                GROW(rows, new_rows, rows_cap, rows_cnt, char* );
+                GROW_ALIGN(rows, new_rows, rows_cap, rows_cnt, char* );
             }
             record_strings = NULL;
             if (has_head==2 && (has_head = string_length > delimiter_length && strncmp(buffer, parameters[0], delimiter_length)==0)) {
                 string_length -= delimiter_length;
-                record_strings = (char*)malloc(sizeof(char)*(string_length+1));
+                record_strings = (char*)aligned_alloc(sizeof(char), sizeof(char)*(string_length+1));
                 memcpy(record_strings, buffer+delimiter_length, sizeof(char)*string_length);
                 record_strings[string_length] = '\0';
             } else {
-                record_strings = (char*)malloc(sizeof(char)*(string_length+1));
+                record_strings = (char*)aligned_alloc(sizeof(char), sizeof(char)*(string_length+1));
                 memcpy(record_strings, buffer, sizeof(char)*string_length);
                 record_strings[string_length] = '\0';
             }
@@ -240,13 +254,14 @@ void merge_and_out(split_sort_handler *handler) {
         if (out_fp==NULL) exit(5);
     }
     record_struct *records = NULL;
-    nodes = (unsigned long*)malloc(sizeof(unsigned long)*node_num);
+    nodes = (unsigned long*)aligned_alloc(sizeof(unsigned long), sizeof(unsigned long)*node_num);
     if (nodes==NULL) exit(3);
     memset(nodes, 0xFF, sizeof(unsigned long)*node_num); /* set infinity (kinda) */
 
-    records = (record_struct*)malloc(sizeof(record_struct)*K);
+    unsigned long record_align_size = sizeof(record_struct)+sizeof(record_struct)%4;
+    records = (record_struct*)aligned_alloc(record_align_size, record_align_size*K);
     if (records==NULL) exit(4);
-    
+
     for (i=0; i<K; ++i) split_sort(handler->temp_fp[i], NULL, records+i, 1); /* read first K first elements */
 
     if (!complete_bt) { /* if not strictly complete */
@@ -302,6 +317,16 @@ void merge_and_out(split_sort_handler *handler) {
 #undef PAR
 }
 
+int check_exist(const char *p) {
+    FILE *f=NULL;
+    f = fopen(p, "rb");
+    if (f==NULL) return 0;
+    else {
+        fclose(f);
+        return 1;
+    }
+}
+
 int main(const int argc, const char **argv) {
     int i=0;
     FILE *fp=NULL;
@@ -309,12 +334,13 @@ int main(const int argc, const char **argv) {
     char has_head = 1;
     split_sort_handler handle;
     record_struct records;
-    if (argc<2) {
+    if (argc==2 && strncmp("--help", argv[1], 6)==0) {
         fprintf(stderr, "Usage:\nrsort filename [-d delimeter | -k field | -m memory_limit | -f output_filename (o.w. stdout) | -n (set numeric comparison) | -r (set reverse sort) | -c  (set case insensitive) | -s (set size_sort) ]\n");
-        exit(2);
+        return 0;
     }
     get_args(argc, argv, parameters, set_parameters);
-    fp = fopen(argv[1], "rb");
+    if (argc<2 || !check_exist(argv[1]) ) fp=stdin;
+    else fp = fopen(argv[1], "rb");
     split_sort(fp, &handle, &records, -1);
     fclose(fp); fp=NULL;
     merge_and_out(&handle);
