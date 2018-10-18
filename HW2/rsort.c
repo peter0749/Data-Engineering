@@ -28,7 +28,10 @@ typedef struct {
 
 void *msort_wrapper(void *init) {
     PARALLEL_SORT_ARGS *args = (PARALLEL_SORT_ARGS*)init;
-    mymergesort(args->data, args->cnt, args->size, args->cpu_cnt, args->cmp);  
+    if (args->cpu_cnt>1)
+        mymergesort(args->data, args->cnt, args->size, args->cpu_cnt, args->cmp);  
+    else
+        qsort(args->data, args->cnt, args->size, args->cmp); 
     pthread_exit(0);
     return NULL;
 }
