@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
+#include "msort.h"
 
 typedef struct {
     size_t n_chunk;  /* Total number of chunks. */
@@ -15,12 +17,29 @@ typedef struct {
     char has_head;
 } record_struct;
 
-const char *parameter_patterns[8] = {"-d", "-k", "-m", "-f", "-c", "-r", "-n", "-s"};
-const char *default_args[4] = {
-    "\n", NULL, "100", NULL /* -d, -k, -m, -f */
+/*mymergesort((void*)rows, rows_cnt, sizeof(char*), cpu_count, comp);  */
+typedef struct {
+    void *data;
+    size_t cnt;
+    size_t size;
+    int cpu_cnt;
+    int (*cmp)(const void *, const void *);
+} PARALLEL_SORT_ARGS;
+
+void *msort_wrapper(void *init) {
+    PARALLEL_SORT_ARGS *args = (PARALLEL_SORT_ARGS*)init;
+    mymergesort(args->data, args->cnt, args->size, args->cpu_cnt, args->cmp);  
+    pthread_exit(0);
+    return NULL;
+}
+
+const char *parameter_patterns[9] = {"-d", "-k", "-m", "-f", "-j", "-c", "-r", "-n", "-s"};
+const char *default_args[5] = {
+    "\n", NULL, "100", NULL, "1" /* -d, -k, -m, -f, -j */
 };
-const char *parameters[4]; /* -d, -k, -m, -f */
+const char *parameters[5]; /* -d, -k, -m, -f, -j */
 int set_parameters[4]={0}; /* -c, -r, -n, -s */
+unsigned int cpu_count = 1;
 
 int parse_parameter(const int argc, const char** args, const char* pattern) {
     int i=0;
@@ -42,13 +61,14 @@ void get_args(const int argc, const char** args, const char **parameters, int *s
      * -s size_sort
      */
     int i = 0, argspos=-1;
-    for (i=0; i<4; ++i) {
+    for (i=0; i<5; ++i) {
         argspos = parse_parameter(argc, args, parameter_patterns[i]);
         parameters[i] = argspos<0?default_args[i]:args[argspos+1];
     }
     for (i=0; i<4; ++i) {
-        set_parameters[i] = parse_parameter(argc, args, parameter_patterns[i+4])<0?0:1;
+        set_parameters[i] = parse_parameter(argc, args, parameter_patterns[i+5])<0?0:1;
     }
+    cpu_count = atoi(parameters[4]);
 }
 
 int comp(const void *a, const void *b) {
@@ -135,6 +155,8 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
     char **rows=NULL, **new_rows=NULL;
     FILE **tmp_fp=NULL, **new_tmp_fp=NULL;
     char *record_strings = NULL;
+    pthread_t *sort_thread=NULL;
+    PARALLEL_SORT_ARGS *msort_args=NULL;
     unsigned long tmp_fp_cap=4;
     unsigned long tmp_fp_cnt=0;
     unsigned long buffer_cap=1024;
@@ -185,26 +207,73 @@ void split_sort(FILE *fp, split_sort_handler *results, record_struct *records, i
             mem_use += (unsigned long long)(sizeof(char)*(string_length+1));
         }
         if (results!=NULL && (mem_use>=buffer_limit || ch==EOF)) { /* write file */
-            qsort((void*)rows, rows_cnt, sizeof(char*), comp);  /* now sort this portion */
-            FILE *temp = tmpfile(); /* w+ mode */
-            writeout(temp, rows, rows_cnt, 0); /* write first delimeter */
-            fputs("\n", temp);
-            fseek(temp, 0, SEEK_SET); /* move to begining of the file */
-            /* remember filepaths */
-            if (tmp_fp_cnt==tmp_fp_cap) {
-                GROW(tmp_fp, new_tmp_fp, tmp_fp_cap, tmp_fp_cnt, FILE* );
+
+            /* wait previous sort thread to terminate */
+            if (sort_thread!=NULL) {
+                pthread_join(*sort_thread, NULL);
+                free(sort_thread);
+                sort_thread=NULL;
+                FILE *temp = tmpfile(); /* w+ mode */
+                writeout(temp, (char**)msort_args->data, msort_args->cnt, 0); /* write first delimeter */
+                fputs("\n", temp);
+                fseek(temp, 0, SEEK_SET); /* move to begining of the file */
+                /* remember filepaths */
+                if (tmp_fp_cnt==tmp_fp_cap) {
+                    GROW(tmp_fp, new_tmp_fp, tmp_fp_cap, tmp_fp_cnt, FILE* );
+                }
+                tmp_fp[tmp_fp_cnt++] = temp;
+                char **del_ptr = (char**)msort_args->data;
+                for (i=0; i<msort_args->cnt; ++i) {
+                    free(del_ptr[i]); del_ptr[i]=NULL;
+                }
+                free(del_ptr); del_ptr=NULL;
+                free(msort_args);
+                msort_args=NULL;
             }
-            tmp_fp[tmp_fp_cnt++] = temp;
-            for (i=0; i<rows_cnt; ++i) {
-                free(rows[i]);
-                rows[i]=NULL;
-            }
+            
+            sort_thread = (pthread_t*)malloc(sizeof(pthread_t));
+            assert(sort_thread!=NULL);
+
+            msort_args = NULL;
+            msort_args = (PARALLEL_SORT_ARGS*)malloc(sizeof(PARALLEL_SORT_ARGS));
+            assert(msort_args!=NULL);
+
+            msort_args->data=(void*)rows;
+            msort_args->cnt =rows_cnt;
+            msort_args->size=sizeof(char*);
+            msort_args->cpu_cnt=cpu_count;
+            msort_args->cmp=comp;
+            assert(pthread_create(sort_thread, NULL, msort_wrapper, (void*)msort_args)==0); /*now sort*/
+            /* sort in backgraound. continue to read file */
+            
+            rows = (char**)malloc(sizeof(char*)*rows_cap);
             rows_cnt = 0;
             mem_use = 0;
         }
         if (ch==EOF) break; 
     }
     free(buffer); buffer=NULL;
+    if (sort_thread!=NULL) { /* complete final part */
+        pthread_join(*sort_thread, NULL);
+        free(sort_thread);
+        sort_thread=NULL;
+        FILE *temp = tmpfile(); /* w+ mode */
+        writeout(temp, (char**)msort_args->data, msort_args->cnt, 0); /* write first delimeter */
+        fputs("\n", temp);
+        fseek(temp, 0, SEEK_SET); /* move to begining of the file */
+        /* remember filepaths */
+        if (tmp_fp_cnt==tmp_fp_cap) {
+            GROW(tmp_fp, new_tmp_fp, tmp_fp_cap, tmp_fp_cnt, FILE* );
+        }
+        tmp_fp[tmp_fp_cnt++] = temp;
+        char **del_ptr = (char**)msort_args->data;
+        for (i=0; i<msort_args->cnt; ++i) {
+            free(del_ptr[i]); del_ptr[i]=NULL;
+        }
+        free(del_ptr); del_ptr=NULL;
+        free(msort_args);
+        msort_args=NULL;
+    }
 
     if (results!=NULL) {
         for (i=0; i<rows_cnt; ++i) {
@@ -310,7 +379,7 @@ int main(const int argc, const char **argv) {
     split_sort_handler handle;
     record_struct records;
     if (argc<2) {
-        fprintf(stderr, "Usage:\nrsort filename [-d delimeter | -k field | -m memory_limit | -f output_filename (o.w. stdout) | -n (set numeric comparison) | -r (set reverse sort) | -c  (set case insensitive) | -s (set size_sort) ]\n");
+        fprintf(stderr, "Usage:\nrsort filename [-d delimeter | -k field | -m memory_limit | -f output_filename (o.w. stdout) | -j n_jobs (number of cpu?) | -n (set numeric comparison) | -r (set reverse sort) | -c  (set case insensitive) | -s (set size_sort) ]\n");
         exit(2);
     }
     get_args(argc, argv, parameters, set_parameters);
