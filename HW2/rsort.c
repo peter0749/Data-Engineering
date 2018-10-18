@@ -27,6 +27,8 @@ typedef struct {
     int (*cmp)(const void *, const void *);
 } PARALLEL_SORT_ARGS;
 
+typedef int (*lexical_cmp)(const char*, const char*);
+
 void *msort_wrapper(void *init) {
     PARALLEL_SORT_ARGS *args = (PARALLEL_SORT_ARGS*)init;
     if (args->cpu_cnt>1)
@@ -44,6 +46,7 @@ const char *default_args[5] = {
 const char *parameters[5]; /* -d, -k, -m, -f, -j */
 int set_parameters[4]={0}; /* -c, -r, -n, -s */
 unsigned int cpu_count = 1;
+lexical_cmp lex=NULL;
 
 int parse_parameter(const int argc, const char** args, const char* pattern) {
     int i=0;
@@ -73,6 +76,7 @@ void get_args(const int argc, const char** args, const char **parameters, int *s
         set_parameters[i] = parse_parameter(argc, args, parameter_patterns[i+5])<0?0:1;
     }
     cpu_count = atoi(parameters[4]);
+    lex = set_parameters[0]?strcasecmp:strcmp;
 }
 
 int comp(const void *a, const void *b) {
@@ -101,7 +105,7 @@ int comp(const void *a, const void *b) {
             f = atoi(d);
             val = e-f;
         } else { /* lexical order */
-            val = set_parameters[0]?strcasecmp(c,d):strcmp(c,d); /* case insensitive? */
+            return lex(c,d);
         }
     }
     return set_parameters[1]?-val:val; /* reverse order? */
@@ -323,7 +327,8 @@ void merge_and_out(split_sort_handler *handler) {
     if (nodes==NULL) exit(3);
     memset(nodes, 0xFF, sizeof(unsigned long)*node_num); /* set infinity (kinda) */
 
-    records = (record_struct*)aligned_alloc(sizeof(record_struct)+sizeof(record_struct)%4, sizeof(record_struct)*K);
+    unsigned long aligned_record_size = sizeof(record_struct)+sizeof(record_struct)%4;
+    records = (record_struct*)aligned_alloc(aligned_record_size, aligned_record_size*K);
     if (records==NULL) exit(4);
     
     for (i=0; i<K; ++i) split_sort(handler->temp_fp[i], NULL, records+i, 1); /* read first K first elements */
