@@ -236,7 +236,7 @@ void merge_and_out(split_sort_handler *handler) {
     unsigned long hidden_nodes=0;
     FILE *out_fp = stdout;
     if (parameters[3]!=NULL) {
-        out_fp = fopen(parameters[3], "w");
+        out_fp = fopen(parameters[3], "wb");
         if (out_fp==NULL) exit(5);
     }
     record_struct *records = NULL;
@@ -314,7 +314,7 @@ int main(const int argc, const char **argv) {
         exit(2);
     }
     get_args(argc, argv, parameters, set_parameters);
-    fp = fopen(argv[1], "r");
+    fp = fopen(argv[1], "rb");
     split_sort(fp, &handle, &records, -1);
     fclose(fp); fp=NULL;
     merge_and_out(&handle);
