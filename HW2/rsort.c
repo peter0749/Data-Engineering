@@ -5,6 +5,9 @@
 #include <ctype.h>
 #include <assert.h>
 #include "msort.h"
+#ifdef __APPLE__
+#define aligned_alloc(X,Y) valloc(Y)
+#endif
 
 typedef struct {
     size_t n_chunk;  /* Total number of chunks. */
