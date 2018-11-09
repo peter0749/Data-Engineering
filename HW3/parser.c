@@ -13,7 +13,7 @@ const char *file_name_postfix = ".rec";
 const size_t file_numbers = 6;
 // const size_t file_numbers = 1;
 const size_t file_prefix_length = 14;
-const size_t buffer_limit = 16384;
+const size_t buffer_limit = 65536;
 const size_t chinese_min_len = 6; // 一句話要有5個字以上（不包含）
 
 // 中文 Unicode 區
