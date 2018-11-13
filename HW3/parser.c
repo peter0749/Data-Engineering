@@ -21,7 +21,7 @@ const unsigned long min_chinese = 0x4E00;
 const unsigned long max_chinese = 0x9FFF;
 // End 中文 unicode 區
 
-const wchar_t *tokens = L"。？！\r\b\t\n?!"; // 斷句 tokens
+const wchar_t *tokens = L"。？！，“”‘’‛‟.,‚″˝；「」\r\b\t\n?!"; // 斷句 tokens
 
 typedef struct {
     wchar_t *url; // 網頁 URL
