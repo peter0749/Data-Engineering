@@ -337,7 +337,7 @@ int main(const int argc, const char **argv) {
     FILE *fp=NULL;
     setlocale(LC_ALL, ""); // 使用這個， fgetws 才不會出錯
     if (argc==2 && strncmp("--help", argv[1], 6)==0) {
-        fprintf(stderr, "Usage:\ntsort filename [-m memory_limit (in MB) | -s key_size (in byte) | -h hash_table_size (in MB) | -v virtual_hash_table_size (in MB) ]\n");
+        fprintf(stderr, "Usage:\ntcount filename [-m memory_limit (in MB) | -s key_size (in byte) | -h hash_table_size (in MB) | -v virtual_hash_table_size (in MB) ]\n");
         return 0;
     }
     get_args(argc, argv);
