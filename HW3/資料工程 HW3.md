@@ -35,7 +35,7 @@ tcount filename [-m memory_limit (in MB) | -s key_size (in byte) | -h hash_table
 
 ，。；：「」等標點符號斷句。（產生較多種類的 key）
 中文字開頭，至少6個中文字以上為一句。
-產生共 `572MB` 的文字擋。
+產生共 `572MB` 的文字擋，共1612萬行句子。
 
 ![](https://i.imgur.com/GUBy0x8.png)
 ![](https://i.imgur.com/pzONC91.png)
