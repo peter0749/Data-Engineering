@@ -14,7 +14,6 @@ const size_t file_numbers = 6;
 // const size_t file_numbers = 1;
 const size_t file_prefix_length = 14;
 const size_t buffer_limit = 65536;
-const size_t chinese_min_len = 6; // 一句話要有5個字以上（不包含）
 
 // 中文 Unicode 區
 const unsigned long min_chinese = 0x4E00;
@@ -51,29 +50,21 @@ int tokenize(wchar_t ***results, wchar_t *str) {
     while(ptr!=NULL) {
         unsigned long ch_cnt = 0;
         wchar_t *ch_test_ptr = ptr;
-        if (ch_test_ptr!=NULL && is_chinese(ch_test_ptr[0])) { // 第一個字必須是中文字
-            while(ch_test_ptr!=NULL && *ch_test_ptr!=0) {
-                ch_cnt += is_chinese(*ch_test_ptr);
-                ++ch_test_ptr;
-            }
+        if(cnt==cap) { // buffer 滿了
+            cap *= 2; // 增加一倍容量
+            s_ptr_t = NULL;
+            s_ptr_t = (wchar_t**) malloc(sizeof(wchar_t*)*cap);
+            if (s_ptr_t==NULL) exit(2);
+            memcpy(s_ptr_t, sentences, sizeof(wchar_t*)*cnt);
+            free(sentences);
+            sentences = s_ptr_t;
+            s_ptr_t = NULL;
         }
-        if (ch_cnt>=chinese_min_len) { // 一句中文必須達到6個字(含)以上
-            if(cnt==cap) { // buffer 滿了
-                cap *= 2; // 增加一倍容量
-                s_ptr_t = NULL;
-                s_ptr_t = (wchar_t**) malloc(sizeof(wchar_t*)*cap);
-                if (s_ptr_t==NULL) exit(2);
-                memcpy(s_ptr_t, sentences, sizeof(wchar_t*)*cnt);
-                free(sentences);
-                sentences = s_ptr_t;
-                s_ptr_t = NULL;
-            }
-            sentences[cnt] = NULL; 
-            sentences[cnt] = (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(ptr)+1));
-            if (sentences[cnt]==NULL) exit(4);
-            wcscpy(sentences[cnt], ptr);
-            ++cnt;
-        }
+        sentences[cnt] = NULL; 
+        sentences[cnt] = (wchar_t*)malloc(sizeof(wchar_t)*(wcslen(ptr)+1));
+        if (sentences[cnt]==NULL) exit(4);
+        wcscpy(sentences[cnt], ptr);
+        ++cnt;
         ptr = wcstok(NULL, tokens, &buff);
     }
     s_ptr_t = NULL;
