@@ -44,7 +44,7 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
         for (j=0; j<cols; ++j) {
             centroids[i][j] = (double)data[_h][j];
         }
-        _h += 331; // prime
+        _h += 101111; // prime
     }
 
     while(mean_centroid_d>tol) {
