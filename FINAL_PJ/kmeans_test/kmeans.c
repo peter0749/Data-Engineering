@@ -26,12 +26,9 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
     double mean_centroid_d = DBL_MAX;
     double **centroids = NULL;
     double **new_centroids = NULL;
-    double *min_cols=NULL, *max_cols=NULL;
     unsigned int *lab_counts=NULL;
     int *labels=NULL;
     int i,j,k;
-    min_cols = (double*)malloc(sizeof(double)*cols);
-    max_cols = (double*)malloc(sizeof(double)*cols);
     centroids = (double**)malloc(sizeof(double*)*K);
     new_centroids = (double**)malloc(sizeof(double*)*K);
     labels = (int*)malloc(sizeof(int)*rows);
@@ -40,20 +37,14 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
     for (i=0; i<K; ++i) centroids[i] = (double*)malloc(sizeof(double)*cols);
     for (i=0; i<K; ++i) new_centroids[i] = (double*)malloc(sizeof(double)*cols);
 
-    // initialize
-    for (i=0; i<cols; ++i) min_cols[i] = DBL_MAX;
-    for (i=0; i<cols; ++i) max_cols[i] = DBL_MIN;
-    for (i=0; i<rows; ++i) {
-        for (j=0; j<cols; ++j) {
-            min_cols[j] = data[i][j]<min_cols[j]?data[i][j]:min_cols[j];
-            max_cols[j] = data[i][j]>max_cols[j]?data[i][j]:max_cols[j];
-        }
-    }
-
+    // initialize (randomly pick k samples wo replacement) 
+    unsigned int _h=rand(); 
     for (i=0; i<K; ++i) {
+        _h = _h%rows;
         for (j=0; j<cols; ++j) {
-            centroids[i][j] = (double)rand() / (double)RAND_MAX * (max_cols[j]-min_cols[j]) + min_cols[j];
+            centroids[i][j] = (double)data[_h][j];
         }
+        _h += 331; // prime
     }
 
     while(mean_centroid_d>tol) {
@@ -103,8 +94,6 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
 
     for (k=0; k<K; ++k) free(new_centroids[k]);
 
-    free(max_cols);
-    free(min_cols);
     free(lab_counts);
     free(new_centroids);
 
