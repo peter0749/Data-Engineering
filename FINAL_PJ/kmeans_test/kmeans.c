@@ -37,13 +37,23 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
     for (int i=0; i<K; ++i) new_centroids[i] = (double*)malloc(sizeof(double)*cols);
 
     // initialize (randomly pick k samples wo replacement) 
-    unsigned int _h=rand(); 
     for (int i=0; i<K; ++i) {
-        _h = _h%rows;
+        int l=rand()%rows;
+        // check repetition
+        char fail;
+        do {
+            fail=0;
+            for (int j=0; j<i; ++j) 
+                if (lab_counts[j]==l) {
+                    fail=1;
+                    l=rand()%rows; // pick another
+                    break;
+                }
+        } while(fail);
+        lab_counts[i] = l;
         for (int j=0; j<cols; ++j) {
-            centroids[i][j] = (double)data[_h][j];
+            centroids[i][j] = (double)data[l][j];
         }
-        _h += 101111; // prime
     }
 
     while(mean_centroid_d>tol) {

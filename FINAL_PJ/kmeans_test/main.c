@@ -28,6 +28,18 @@ int main(void) {
         data[i][2] = rand()%49;   //  [ 0,  48], mean=24
         data[i][3] = rand()%51+100; // [100, 150], mean=125
     }
+    /*
+    for (i=0; i<30000000; ++i) { // add variance
+        int d = rand()%15 - 7; // [-7,+7]
+        data[i][0] += (unsigned int)(d<0?0:d);  
+        d = rand()%21 - 10; // [-10,+10]
+        data[i][1] += (unsigned int)(d<0?0:d); 
+        d = rand()%9 - 4; // [-4,+4]
+        data[i][2] += (unsigned int)(d<0?0:d); 
+        d = rand()%31 - 15; // [-15,+15]
+        data[i][3] += (unsigned int)(d<0?0:d); 
+    }
+    */
     kmeans_intersec_int(data, NULL, &centroids, 30000000, 4, 3, 1e-8);
     /*
      * expect 3 clusters:
