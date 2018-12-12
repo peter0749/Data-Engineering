@@ -1,10 +1,11 @@
+#include <pthread.h>
+#include <omp.h>
 #include "kmeans.h"
 
 double hist_intersection(unsigned int *A, double *B, unsigned int cols) {
-    unsigned int i=0;
     unsigned int intersect=0;
     unsigned int onions=0;
-    for (i=0; i<cols; ++i) {
+    for (unsigned int i=0; i<cols; ++i) {
         intersect += (A[i]<B[i]?A[i]:B[i]);
         onions += (A[i]>B[i]?A[i]:B[i]);
     }
@@ -12,10 +13,9 @@ double hist_intersection(unsigned int *A, double *B, unsigned int cols) {
 }
 
 double hist_intersection_f(double *A, double *B, unsigned int cols) {
-    unsigned int i=0;
     unsigned int intersect=0;
     unsigned int onions=0;
-    for (i=0; i<cols; ++i) {
+    for (unsigned int i=0; i<cols; ++i) {
         intersect += (A[i]<B[i]?A[i]:B[i]);
         onions += (A[i]>B[i]?A[i]:B[i]);
     }
@@ -28,20 +28,19 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
     double **new_centroids = NULL;
     unsigned int *lab_counts=NULL;
     int *labels=NULL;
-    int i,j,k;
     centroids = (double**)malloc(sizeof(double*)*K);
     new_centroids = (double**)malloc(sizeof(double*)*K);
     labels = (int*)malloc(sizeof(int)*rows);
     lab_counts = (int*)malloc(sizeof(int)*K);
 
-    for (i=0; i<K; ++i) centroids[i] = (double*)malloc(sizeof(double)*cols);
-    for (i=0; i<K; ++i) new_centroids[i] = (double*)malloc(sizeof(double)*cols);
+    for (int i=0; i<K; ++i) centroids[i] = (double*)malloc(sizeof(double)*cols);
+    for (int i=0; i<K; ++i) new_centroids[i] = (double*)malloc(sizeof(double)*cols);
 
     // initialize (randomly pick k samples wo replacement) 
     unsigned int _h=rand(); 
-    for (i=0; i<K; ++i) {
+    for (int i=0; i<K; ++i) {
         _h = _h%rows;
-        for (j=0; j<cols; ++j) {
+        for (int j=0; j<cols; ++j) {
             centroids[i][j] = (double)data[_h][j];
         }
         _h += 101111; // prime
@@ -49,10 +48,11 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
 
     while(mean_centroid_d>tol) {
         // determine labels
-        for (i=0; i<rows; ++i) {
+        #pragma omp parallel for
+        for (int i=0; i<rows; ++i) {
             unsigned int best_l=0;
             double min_d=DBL_MAX;
-            for (k=0; k<K; ++k) {
+            for (int k=0; k<K; ++k) {
                 double d = hist_intersection(data[i], centroids[k], cols);
                 if (d<min_d) {
                     min_d = d;
@@ -62,27 +62,27 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
             labels[i] = best_l;
         }
         // determine new centroids
-        for (k=0; k<K; ++k) memset(new_centroids[k], 0x00, sizeof(double)*cols);
+        for (int k=0; k<K; ++k) memset(new_centroids[k], 0x00, sizeof(double)*cols);
         memset(lab_counts, 0x00, sizeof(int)*K);
-        for (i=0; i<rows; ++i) {
+        for (int i=0; i<rows; ++i) {
             unsigned int l = labels[i];
             ++lab_counts[l];
-            for (j=0; j<cols; ++j) {
+            for (int j=0; j<cols; ++j) {
                 new_centroids[l][j] += data[i][j]; // sum
             }
         }
-        for (k=0; k<K; ++k) {
-            for (j=0; j<cols; ++j) {
+        for (int k=0; k<K; ++k) {
+            for (int j=0; j<cols; ++j) {
                 new_centroids[k][j] /= (double)(lab_counts[k]+1e-8); // mean
             }
         }
         mean_centroid_d = 0;
-        for (k=0; k<K; ++k) {
+        for (int k=0; k<K; ++k) {
             mean_centroid_d += hist_intersection_f(centroids[k], new_centroids[k], cols);
         }
         mean_centroid_d /= (double)K;
         // assign new centroids to centroids
-        for (k=0; k<K; ++k) {
+        for (int k=0; k<K; ++k) {
             double *ptr = centroids[k];
             centroids[k] = new_centroids[k];
             new_centroids[k] = ptr;
@@ -92,7 +92,7 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
 #endif
     }
 
-    for (k=0; k<K; ++k) free(new_centroids[k]);
+    for (int k=0; k<K; ++k) free(new_centroids[k]);
 
     free(lab_counts);
     free(new_centroids);
