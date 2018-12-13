@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
     labels_struct.data      = NULL;
 
     fprintf(stderr, "Training...\n");
-    kmeans_intersec_int(data_pack.data, &labels_struct.data, &centroids_struct.data, data_pack.n_rows, data_pack.n_cols, n_clusters, tol, 1);
+    kmeans_intersec_int(data_pack.data, &labels_struct.data, &centroids_struct.data, data_pack.n_rows, data_pack.n_cols, n_clusters, tol, 20, 1);
     fprintf(stderr, "Training finished.\n");
     destroy_kmeans_data(&data_pack);
 
