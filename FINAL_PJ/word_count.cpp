@@ -47,7 +47,10 @@ int main(void) {
         record = new news_record_structure;
         fpath = new char[64];
         sprintf(fpath, "./.db/%lu.dat", i);
-        read_news_record(record, fpath);
+        #pragma omp critical(disk_io_section)
+        {
+            read_news_record(record, fpath);
+        }
         word_cnt_local = new unordered_map<wstring, unsigned int>(jieba_wordcount(wstring(record->content), jieba));
         delete record; record=NULL;
         v_local = new vector< pair<wstring, unsigned int> >(word_cnt_local->begin(), word_cnt_local->end());
@@ -55,17 +58,20 @@ int main(void) {
         sort(v_local->begin(), v_local->end(), sortBySec<wstring, unsigned int>);
         sprintf(fpath, "./.db/word_count/%lu.cnt", i);
         foutp = NULL;
-        foutp = fopen(fpath, "wb");
-        // write to file
-        for (auto e: *v_local) {
-            fwprintf(foutp, L"%ls,%u\n", e.first.c_str(), e.second);
+        #pragma omp critical(disk_io_section)
+        {
+            foutp = fopen(fpath, "wb");
+            // write to file
+            for (auto e: *v_local) {
+                fwprintf(foutp, L"%ls,%u\n", e.first.c_str(), e.second);
+            }
+            fclose(foutp);
+            foutp=NULL;
         }
-        fclose(foutp);
-        foutp=NULL;
         delete [] fpath;
 
         // update global word count (critical section)
-        #pragma omp critical(map_tot_update)
+        #pragma omp critical(map_update)
         {
             for (auto e: *v_local) {
                 if (word_cnt_tot->count(e.first)==0) word_cnt_tot->insert(e);
