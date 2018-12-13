@@ -40,7 +40,7 @@ int main(void) {
         data[i][3] += (unsigned int)(d<0?0:d); 
     }
     */
-    kmeans_intersec_int(data, NULL, &centroids, 30000000, 4, 3, 1e-8);
+    kmeans_intersec_int(data, NULL, &centroids, 30000000, 4, 3, 1e-4);
     /*
      * expect 3 clusters:
      * (24,125,45,95), (95,24,125,55), (55,75,24,125)

@@ -2,26 +2,6 @@
 #include <omp.h>
 #include "kmeans.h"
 
-double hist_intersection(unsigned int *A, double *B, unsigned int cols) {
-    unsigned int intersect=0;
-    unsigned int onions=0;
-    for (unsigned int i=0; i<cols; ++i) {
-        intersect += (A[i]<B[i]?A[i]:B[i]);
-        onions += (A[i]>B[i]?A[i]:B[i]);
-    }
-    return 1.0 - (double)(intersect+1) / (double)(onions+1);
-}
-
-double hist_intersection_f(double *A, double *B, unsigned int cols) {
-    unsigned int intersect=0;
-    unsigned int onions=0;
-    for (unsigned int i=0; i<cols; ++i) {
-        intersect += (A[i]<B[i]?A[i]:B[i]);
-        onions += (A[i]>B[i]?A[i]:B[i]);
-    }
-    return 1.0 - (double)(intersect+1) / (double)(onions+1);
-}
-
 void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol) {
     double mean_centroid_d = DBL_MAX;
     double **centroids = NULL;
