@@ -2,11 +2,149 @@
 #include <omp.h>
 #include "kmeans.h"
 
-void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol) {
+void destroy_kmeans_labels(kmeans_labels *data_pak) {
+    if (data_pak==NULL || data_pak->data==NULL) return;
+    free(data_pak->data); data_pak->data = NULL;
+    data_pak->n_labels=0;
+}
+
+void load_kmeans_labels(const char *fpath, kmeans_labels *data_pak) {
+    FILE *fp=NULL;
+    fp = fopen(fpath, "rb");
+    unsigned int *content=NULL;
+    unsigned int n_labels=0;
+    fread(&n_labels, sizeof(unsigned int), 1, fp);
+    content = (unsigned int*)malloc(sizeof(unsigned int)*n_labels);
+    fread(content, sizeof(unsigned int), n_labels, fp);
+    data_pak->n_labels = n_labels;
+    data_pak->data = content;
+    fclose(fp);
+}
+
+void write_kmeans_labels(const char *fpath, const kmeans_labels *data_pak) {
+    FILE *fp=NULL;
+    fp = fopen(fpath, "wb");
+    fwrite(&data_pak->n_labels, sizeof(unsigned int), 1, fp);
+    fwrite(data_pak->data, sizeof(unsigned int), data_pak->n_labels, fp);
+    fclose(fp);
+}
+
+void destroy_kmeans_centroids(kmeans_centroids *data_pak) {
+    if (data_pak==NULL) return;
+    if (data_pak->data!=NULL) free(data_pak->data); data_pak->data = NULL;
+    if (data_pak->_data!=NULL) free(data_pak->_data); data_pak->_data = NULL;
+    data_pak->n_rows = data_pak->n_cols = 0;
+}
+
+void load_kmeans_centroids(const char *fpath, kmeans_centroids *data_pak) {
+    FILE *fp=NULL;
+    fp = fopen(fpath, "rb");
+    double *content=NULL;
+    unsigned int n_rows=0, n_cols=0;
+    fread(&n_rows, sizeof(unsigned int), 1, fp);
+    fread(&n_cols, sizeof(unsigned int), 1, fp);
+    content = (double*)malloc(sizeof(double)*n_rows*n_cols);
+    fread(content, sizeof(double), n_rows*n_cols, fp);
+    data_pak->n_rows = n_rows;
+    data_pak->n_cols = n_cols;
+    data_pak->_data = content;
+    data_pak->data = NULL;
+    data_pak->data = (double**)malloc(sizeof(double*)*n_rows);
+    for (unsigned int i=0; i<n_rows; ++i) data_pak->data[i] = content+i*n_cols;
+    fclose(fp);
+}
+
+void write_kmeans_centroids(const char *fpath, const kmeans_centroids *data_pak) {
+    FILE *fp=NULL;
+    fp = fopen(fpath, "wb");
+    fwrite(&data_pak->n_rows, sizeof(unsigned int), 1, fp);
+    fwrite(&data_pak->n_cols, sizeof(unsigned int), 1, fp);
+    // fwrite(data_pak->_data, sizeof(double), data_pak->n_rows*data_pak->n_cols, fp);
+    for (unsigned int i=0; i<data_pak->n_rows; ++i) {
+        fwrite(data_pak->data[i], sizeof(double), data_pak->n_cols, fp);
+    }
+    fclose(fp);
+}
+
+void destroy_kmeans_data(kmeans_data *data_pak) {
+    if (data_pak==NULL) return;
+    if (data_pak->data!=NULL) free(data_pak->data); data_pak->data = NULL;
+    if (data_pak->_data!=NULL) free(data_pak->_data); data_pak->_data = NULL;
+    data_pak->n_rows = data_pak->n_cols = 0;
+}
+
+void load_kmeans_data(const char *fpath, kmeans_data *data_pak) {
+    FILE *fp=NULL;
+    fp = fopen(fpath, "rb");
+    unsigned int *content=NULL;
+    unsigned int n_rows=0, n_cols=0;
+    fread(&n_rows, sizeof(unsigned int), 1, fp);
+    fread(&n_cols, sizeof(unsigned int), 1, fp);
+    content = (unsigned int*)malloc(sizeof(unsigned int)*n_rows*n_cols);
+    fread(content, sizeof(unsigned int), n_rows*n_cols, fp);
+    data_pak->n_rows = n_rows;
+    data_pak->n_cols = n_cols;
+    data_pak->_data = content;
+    data_pak->data = NULL;
+    data_pak->data = (unsigned int**)malloc(sizeof(unsigned int*)*n_rows);
+    for (unsigned int i=0; i<n_rows; ++i) data_pak->data[i] = content+i*n_cols;
+    fclose(fp);
+}
+
+/*
+double hist_intersection(unsigned int *P, double *Q, unsigned int cols) {
+    double P_M = 0.0;
+    double Q_M = 0.0;
+    double JSD = 0.0;
+    for (unsigned int i=0; i<cols; ++i) {
+        double M_i = ((double)P[i]+Q[i]) / 2.0 + 1e-8;
+        P_M += (double)P[i]*log(((double)P[i]+1e-8) / M_i);
+        Q_M +=         Q[i]*log((        Q[i]+1e-8) / M_i);
+    }
+    JSD = (P_M+Q_M) / 2.0;
+    return JSD*JSD;
+}
+
+double hist_intersection_f(double *P, double *Q, unsigned int cols) {
+    double P_M = 0.0;
+    double Q_M = 0.0;
+    double JSD = 0.0;
+    for (unsigned int i=0; i<cols; ++i) {
+        double M_i = (P[i]+Q[i]) / 2.0 + 1e-8;
+        P_M += P[i]*log((P[i]+1e-8) / M_i);
+        Q_M += Q[i]*log((Q[i]+1e-8) / M_i);
+    }
+    JSD = (P_M+Q_M) / 2.0;
+    return JSD*JSD;
+}
+*/
+
+double hist_intersection(unsigned int *A, double *B, unsigned int cols) {
+    unsigned int intersect=0;
+    unsigned int onions=0;
+    for (unsigned int i=0; i<cols; ++i) {
+        intersect += (A[i]<B[i]?A[i]:B[i]);
+        onions += (A[i]>B[i]?A[i]:B[i]);
+    }
+    return 1.0 - (double)(intersect+1) / (double)(onions+1);
+}
+
+double hist_intersection_f(double *A, double *B, unsigned int cols) {
+    unsigned int intersect=0;
+    unsigned int onions=0;
+    for (unsigned int i=0; i<cols; ++i) {
+        intersect += (A[i]<B[i]?A[i]:B[i]);
+        onions += (A[i]>B[i]?A[i]:B[i]);
+    }
+    return 1.0 - (double)(intersect+1) / (double)(onions+1);
+}
+
+void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol, char verbose) {
     double mean_centroid_d = DBL_MAX;
     double **centroids = NULL;
     double **new_centroids = NULL;
     unsigned int *lab_counts=NULL;
+    unsigned int iter_counter=0;
     int *labels=NULL;
     centroids = (double**)malloc(sizeof(double*)*K);
     new_centroids = (double**)malloc(sizeof(double*)*K);
@@ -36,6 +174,7 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
         }
     }
 
+    iter_counter=0;
     while(mean_centroid_d>tol) {
         // determine labels
         #pragma omp parallel for
@@ -77,9 +216,7 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
             centroids[k] = new_centroids[k];
             new_centroids[k] = ptr;
         }
-#ifdef __DEBUG_K_MEANS
-        fprintf(stderr, "%.2lf\n", mean_centroid_d);
-#endif
+        if (verbose) fprintf(stderr, "[%d]: %.4lf\n", ++iter_counter, mean_centroid_d);
     }
 
     for (int k=0; k<K; ++k) free(new_centroids[k]);

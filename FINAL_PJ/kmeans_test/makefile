@@ -1,6 +1,8 @@
-all: tester
-tester: main.c kmeans.c
-	gcc main.c kmeans.c -lm -openmp -fopenmp -Ofast --fast-math -o tester
+all: kmeans
+kmeans: main.c kmeans.o
+	gcc main.c kmeans.o -lm -openmp -fopenmp -Ofast --fast-math -o kmeans
+kmeans.o: kmeans.c
+	gcc kmeans.c -c -openmp -fopenmp -Ofast --fast-math -o kmeans.o
 clean:
-	rm -f tester
+	rm -f kmeans *.o
 

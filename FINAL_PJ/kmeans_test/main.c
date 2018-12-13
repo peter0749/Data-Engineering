@@ -1,59 +1,53 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include "kmeans.h"
 
-int main(void) {
+int main(int argc, char **argv) {
     srand(time(NULL));
     int i, j;
-    unsigned int **data = NULL;
-    double **centroids = NULL;
-    data = (unsigned int**)malloc(sizeof(int*)*30000000);
-    for (i=0; i<30000000; ++i) data[i] = (unsigned int*)malloc(sizeof(int)*4);
-    for (i=0; i<10000000; ++i) {
-        data[i][0] = rand()%49;     // [  0,  48], mean=24
-        data[i][1] = rand()%51+100; // [100, 150], mean=125
-        data[i][2] = rand()%51+20;  // [ 20,  70], mean=45
-        data[i][3] = rand()%51+70;  // [70,  120], mean=95
+    int n_clusters=3;
+    double tol = 1e-4;
+    kmeans_data data_pack;
+    kmeans_centroids centroids_struct;
+    kmeans_labels labels_struct;
+    FILE *fp=NULL;
+
+    if (argc!=4) {
+        fprintf(stderr, "Usage: kmeans data_path n_clusters tol\n");
+        exit(1);
+    } 
+
+    tol = atof(argv[3]);
+    n_clusters = atol(argv[2]);
+    fprintf(stderr, "Setteings:\ntol: %.5f\nn_clusters: %d\npath: %s\n", tol, n_clusters, argv[1]);
+    fprintf(stderr, "Loading data...\n");
+    load_kmeans_data(argv[1], &data_pack);
+    fprintf(stderr, "Data shape: (%d,%d)\n", data_pack.n_rows, data_pack.n_cols);
+
+    centroids_struct.n_rows = n_clusters;
+    centroids_struct.n_cols = data_pack.n_cols;
+    centroids_struct.data   = NULL;
+    centroids_struct._data  = NULL;
+    labels_struct.n_labels  = data_pack.n_rows;
+    labels_struct.data      = NULL;
+
+    fprintf(stderr, "Training...\n");
+    kmeans_intersec_int(data_pack.data, &labels_struct.data, &centroids_struct.data, data_pack.n_rows, data_pack.n_cols, n_clusters, tol, 1);
+    fprintf(stderr, "Training finished.\n");
+    destroy_kmeans_data(&data_pack);
+
+    fp = fopen("./labels.csv", "w");
+    fprintf(fp, "labels\n");
+    for (unsigned int i=0; i<labels_struct.n_labels; ++i) {
+        fprintf(fp, "%u\n", labels_struct.data[i]);
     }
-    for (i=10000000; i<20000000; ++i) {
-        data[i][0] = rand()%51+70;  // [70,  120], mean=95
-        data[i][1] = rand()%49;     // [ 0,   48], mean=24
-        data[i][2] = rand()%51+100; // [100, 150], mean=125
-        data[i][3] = rand()%51+30; // [30,  80], mean=55
-    }
-    for (i=20000000; i<30000000; ++i) {
-        data[i][0] = rand()%51+30; // [30,  80], mean=55
-        data[i][1] = rand()%51+50; // [50, 100], mean=75
-        data[i][2] = rand()%49;   //  [ 0,  48], mean=24
-        data[i][3] = rand()%51+100; // [100, 150], mean=125
-    }
-    /*
-    for (i=0; i<30000000; ++i) { // add variance
-        int d = rand()%15 - 7; // [-7,+7]
-        data[i][0] += (unsigned int)(d<0?0:d);  
-        d = rand()%21 - 10; // [-10,+10]
-        data[i][1] += (unsigned int)(d<0?0:d); 
-        d = rand()%9 - 4; // [-4,+4]
-        data[i][2] += (unsigned int)(d<0?0:d); 
-        d = rand()%31 - 15; // [-15,+15]
-        data[i][3] += (unsigned int)(d<0?0:d); 
-    }
-    */
-    kmeans_intersec_int(data, NULL, &centroids, 30000000, 4, 3, 1e-4);
-    /*
-     * expect 3 clusters:
-     * (24,125,45,95), (95,24,125,55), (55,75,24,125)
-     * approximately
-     */
-    for (i=0; i<3; ++i) {
-        fprintf(stderr, "%d: %.2lf %.2lf %.2lf %.2lf\n", i, centroids[i][0], centroids[i][1], centroids[i][2], centroids[i][3]);
-    }
-    for (i=0; i<3; ++i) {
-        free(centroids[i]);
-    }
-    free(centroids);
-    for (i=0; i<30000000; ++i) free(data[i]);
-    free(data);
+    fclose(fp); fp=NULL;
+
+    write_kmeans_labels("./labels.bin", &labels_struct);
+    destroy_kmeans_labels(&labels_struct);
+    write_kmeans_centroids("./centroids.bin", &centroids_struct);
+    destroy_kmeans_centroids(&centroids_struct);
     return 0;
 }
