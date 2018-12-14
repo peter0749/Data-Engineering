@@ -19,7 +19,7 @@ word2vec:
 compile_kmeans:
 	$(MAKE) -C kmeans kmeans
 run_preprocessing: word2vec cppjieba parser gen_corpus 
-	./parser && ./gen_corpus && ./word2vec/word2vec -train ./.db/word2vec/corpus.txt -output ./.db/word2vec/classes.txt -size 100 -window 5 -sample 1e-3 -hs 1 -negative 5 -threads 12 -iter 20 -min-count 5 -alpha 0.025 -binary 0 -cbow 1 -classes 30
+	./parser && ./gen_corpus && ./word2vec/word2vec -train ./.db/word2vec/corpus.txt -output ./.db/word2vec/classes.txt -size 250 -window 5 -sample 1e-3 -hs 1 -threads 11 -iter 40 -min-count 5 -alpha 0.025 -binary 0 -cbow 1 -classes 30
 clean:
 	$(MAKE) -C kmeans clean
 	rm -rf cppjieba
