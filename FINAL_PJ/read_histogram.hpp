@@ -1,41 +1,60 @@
 #ifndef __INCLUDE_READ_HISTOGRAM__HPP
 #define __INCLUDE_READ_HISTOGRAM__HPP
 #include <iostream>
+#include <string>
+#include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <cstdlib>
 #include <cstdio>
 
-inline unsigned int *hist2vec(const std::unordered_map<std::wstring, unsigned int> &local_map, const std::vector<std::wstring> &ordered_keyset) {
+inline std::unordered_map<std::wstring, unsigned int> get_histogram_mapping(const char *fpath, unsigned int *n_class, wchar_t *buffer, size_t buffer_size) {
+    FILE *fp=NULL;
+    std::wstring read_line;
+    std::wstring key;
+    std::unordered_set<unsigned int> s;
+    std::unordered_map<std::wstring, unsigned int> word2class;
+    unsigned int label;
+    fp = fopen(fpath, "rb");
+    while(fgetws(buffer, buffer_size-1, fp)!=NULL) {
+        std::wstringstream ss(buffer);
+        ss>>key>>label;
+        word2class.insert({key,label});
+        s.insert(label);
+    }
+    fclose(fp); fp=NULL;
+    if (n_class!=NULL) *n_class = (unsigned int)s.size();
+    return word2class;
+}
+
+inline unsigned int *hist2vec(const std::unordered_map<std::wstring, unsigned int> &local_map, const std::unordered_map<std::wstring, unsigned int> &key2class, unsigned int n_class) {
     using namespace std;
     unsigned int *feature = NULL;
-    unsigned int fn = 0;
-    unsigned int topN = ordered_keyset.size();
-    feature = new unsigned int[topN];
-    fill(feature, feature+topN, 0); // initialize histogram feature
-    fn = 0;
-    for (const auto &f : ordered_keyset) {
-        const auto iter = local_map.find(f);
-        if (iter!=local_map.end()) feature[fn] = iter->second;
-        ++fn;
+    feature = new unsigned int[n_class];
+    fill(feature, feature+n_class, 0); // initialize histogram feature
+    for (const auto &f : local_map) {
+        const auto iter = key2class.find(f.first);
+        if (iter!=key2class.end()) {
+            feature[ iter->second  ] += f.second;
+        }
     }
     return feature;
 }
 
-inline unsigned int read_topN_words(const char *fpath, unsigned int skipN, unsigned int topN, wchar_t *read_buffer, size_t read_buffer_size,\
-        std::vector<std::wstring> &ordered_keys, std::unordered_map<std::wstring, unsigned int> &dict) {
+inline unsigned int read_words(const char *fpath, unsigned int skipN, wchar_t *read_buffer, size_t read_buffer_size,\
+        std::unordered_map<std::wstring, unsigned int> &dict) {
     using namespace std;
     unsigned int n_features=0;
     FILE *fp = NULL;
     wstring key_s;
     fp = fopen(fpath, "rb");
     while(skipN-- && fgetws(read_buffer, read_buffer_size-1, fp)!=NULL); // skip first N words
-    while(n_features<topN && fgetws(read_buffer, read_buffer_size-1, fp)!=NULL) {
+    while(fgetws(read_buffer, read_buffer_size-1, fp)!=NULL) {
         wstringstream ss(read_buffer);
         getline(ss, key_s, L',');
         dict.insert({key_s, n_features});
-        ordered_keys.push_back(key_s);
         ++n_features;
     }
     fclose(fp); fp=NULL;
