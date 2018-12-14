@@ -139,7 +139,7 @@ double hist_intersection_f(double *A, double *B, unsigned int cols) {
     return 1.0 - (double)(intersect+1) / (double)(onions+1);
 }
 
-void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol, int max_iter, char verbose) {
+void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol, int max_iter, double noise_amp, double delta, char verbose) {
     double mean_centroid_d = DBL_MAX;
     double **centroids = NULL;
     double **new_centroids = NULL;
@@ -203,6 +203,8 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
         for (int k=0; k<K; ++k) {
             for (int j=0; j<cols; ++j) {
                 new_centroids[k][j] /= (double)(lab_counts[k]+1e-8); // mean
+                new_centroids[k][j] += ((double)rand() / (double)RAND_MAX * 2.0 - 1.0) * noise_amp; // noise = [-1,+1] * noise_amp (0-mean)
+                if (new_centroids[k][j]<0) new_centroids[k][j]=0;
             }
         }
         mean_centroid_d = 0;
@@ -217,7 +219,8 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
             new_centroids[k] = ptr;
         }
         ++iter_counter;
-        if (verbose) fprintf(stderr, "[%d]: %.4lf\n", iter_counter, mean_centroid_d);
+        if (verbose) fprintf(stderr, "[%d] d:%.4lf, n:%.4lf\n", iter_counter, mean_centroid_d, noise_amp);
+        noise_amp *= delta;
     }
 
     for (int k=0; k<K; ++k) free(new_centroids[k]);
