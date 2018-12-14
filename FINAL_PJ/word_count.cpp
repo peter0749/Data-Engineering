@@ -13,6 +13,7 @@
 #include <omp.h>
 #include "record_structure.h"
 #include "ngram_word_count.hpp"
+// #include "jieba_word_count.hpp"
 
 template<class A, class B>
 bool sortBySec(const std::pair<A,B>&a, const std::pair<A,B>&b) {
@@ -27,6 +28,7 @@ int main(int argc, char **argv) {
     unsigned long n_records=0;
     unordered_map<wstring, unsigned int> *word_cnt_tot = new unordered_map<wstring, unsigned int>();
     vector< pair<wstring, unsigned int> > *v=NULL;
+    // cppjieba::MixSegment jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH);
     FILE *fp=NULL;
     struct stat st = {0};
     if (stat("./.db/word_count", &st) == -1) {
@@ -38,6 +40,7 @@ int main(int argc, char **argv) {
     fscanf(fp, "%lu", &n_records);
     fclose(fp);
 
+    // #pragma omp parallel for shared(word_cnt_tot,jieba)
     #pragma omp parallel for shared(word_cnt_tot,Ng)
     for (unsigned long i=0; i<n_records; ++i) {
         char *fpath = NULL;
@@ -53,6 +56,7 @@ int main(int argc, char **argv) {
             read_news_record(record, fpath);
         }
         word_cnt_local = new unordered_map<wstring, unsigned int>(ngram_wordcount(wstring(record->content), Ng));
+        // word_cnt_local = new unordered_map<wstring, unsigned int>(jieba_wordcount(wstring(record->content), jieba));
         delete record; record=NULL;
         v_local = new vector< pair<wstring, unsigned int> >(word_cnt_local->begin(), word_cnt_local->end());
         delete word_cnt_local; word_cnt_local=NULL;

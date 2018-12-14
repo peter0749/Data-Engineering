@@ -23,9 +23,9 @@ int main(int argc, char **argv) {
     sprintf(fpath, "./.db/%lu.dat", id);
     read_news_record(&record, fpath);
 
-    wcout << L"URL: " << record.url << endl;
-    wcout << L"TITLE: " << record.title << endl;
-    wcout << L"CONTEXT: " << record.content << endl;
+    wcout << record.url << endl;
+    wcout << record.title << endl;
+    wcout << record.content << endl;
     
     return 0;
 }

@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 // #include <codecvt>
-#include "cppjieba/include/cppjieba/Jieba.hpp"
+#include "cppjieba/include/cppjieba/MixSegment.hpp"
 #include "wstringcvt.hpp"
 #define DICT_PATH "cppjieba/dict/jieba.dict.utf8"
 #define HMM_PATH "cppjieba/dict/hmm_model.utf8"
@@ -25,7 +25,7 @@ __attribute__((always_inline)) bool filter(const std::wstring &s) {
     return true;
 }
 
-__attribute__((always_inline)) std::unordered_map<std::wstring, unsigned int> jieba_wordcount(const std::wstring &str, const cppjieba::Jieba &jieba) {
+__attribute__((always_inline)) std::unordered_map<std::wstring, unsigned int> jieba_wordcount(const std::wstring &str, const cppjieba::MixSegment &jieba) {
     // static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     std::unordered_map<std::wstring, unsigned int> pattern;
     std::vector<std::string> words;
