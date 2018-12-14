@@ -91,7 +91,6 @@ void load_kmeans_data(const char *fpath, kmeans_data *data_pak) {
     fclose(fp);
 }
 
-/*
 double hist_intersection(unsigned int *P, double *Q, unsigned int cols) {
     double P_M = 0.0;
     double Q_M = 0.0;
@@ -117,8 +116,8 @@ double hist_intersection_f(double *P, double *Q, unsigned int cols) {
     JSD = (P_M+Q_M) / 2.0;
     return JSD*JSD;
 }
-*/
 
+/*
 double hist_intersection(unsigned int *A, double *B, unsigned int cols) {
     unsigned int intersect=0;
     unsigned int onions=0;
@@ -138,6 +137,7 @@ double hist_intersection_f(double *A, double *B, unsigned int cols) {
     }
     return 1.0 - (double)(intersect+1) / (double)(onions+1);
 }
+*/
 
 void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol, int max_iter, double noise_amp, double delta, char verbose) {
     double mean_centroid_d = DBL_MAX;
@@ -219,7 +219,7 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
             new_centroids[k] = ptr;
         }
         ++iter_counter;
-        if (verbose) fprintf(stderr, "[%d] d:%.4lf, n:%.4lf\n", iter_counter, mean_centroid_d, noise_amp);
+        if (verbose) fprintf(stderr, "[%d/%d] d:%.4lf, n:%.4lf\n", iter_counter, max_iter, mean_centroid_d, noise_amp);
         noise_amp *= delta;
     }
 
