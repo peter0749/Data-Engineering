@@ -26,6 +26,8 @@ int main(int argc, char **argv) {
     wcout << record.url << endl;
     wcout << record.title << endl;
     wcout << record.content << endl;
+
+    free(record.content); record.content=NULL;
     
     return 0;
 }

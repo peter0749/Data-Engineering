@@ -63,6 +63,11 @@ int main(int argc, char **argv) {
     assert(done_workers==n_records);
 
     fclose(fp); fp=NULL;
+
+    fp = fopen("./.db/word_count/selected_cols.txt", "w");
+    fprintf(fp, "%u %u\n", skipN, topN);
+    fclose(fp); fp=NULL;
+
     fprintf(stderr, "\nDone!\n");
     fflush(stderr);
 
