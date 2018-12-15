@@ -17,14 +17,6 @@
 #define max_chinese 0x9FFF
 // End 中文 unicode 區
 
-__attribute__((always_inline)) bool filter(const std::wstring &s) {
-    if (s.length()<2 || s.length()>5) return false;
-    for (const auto &v: s) {
-        if(v<min_chinese || v>max_chinese) return false;
-    }
-    return true;
-}
-
 __attribute__((always_inline)) std::vector<std::wstring> tokenize_jieba(wchar_t *wcs, const cppjieba::MixSegment &jieba) {
     const wchar_t *tokens = L"。？！\r\b\t\n?!";
     wchar_t *ptr=NULL, *ptr2=NULL;
@@ -47,10 +39,8 @@ __attribute__((always_inline)) std::unordered_map<std::wstring, unsigned int> ji
     wcscpy(wcs, str.c_str());
     words = tokenize_jieba(wcs, jieba);
     for (const std::wstring &ws : words) {
-        if (filter(ws)) {
-            if (pattern.count(ws)==0) pattern.insert(std::make_pair<const std::wstring&, unsigned int>(ws, 1u));
-            else ++pattern[ws];
-        }
+        if (pattern.count(ws)==0) pattern.insert(std::make_pair<const std::wstring&, unsigned int>(ws, 1u));
+        else ++pattern[ws];
     }
     delete[] wcs; wcs=NULL;
     return pattern;

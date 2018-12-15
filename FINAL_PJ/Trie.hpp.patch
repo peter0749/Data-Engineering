@@ -1,0 +1,11 @@
+--- cppjieba/include/cppjieba/Trie.hpp	2018-12-15 18:18:09.444865322 +0800
++++ cppjieba/include/cppjieba/Trie.hpp	2018-12-15 18:22:24.442454829 +0800
+@@ -10,7 +10,7 @@
+ 
+ using namespace std;
+ 
+-const size_t MAX_WORD_LENGTH = 512;
++const size_t MAX_WORD_LENGTH = 1024;
+ 
+ struct DictUnit {
+   Unicode word;

@@ -30,7 +30,7 @@ int main(void) {
     fscanf(fp, "%lu", &n_records);
     fclose(fp); fp=NULL;
 
-    fp = fopen("./.db/word2vec/corpus.txt", "wb");
+    fp = fopen("./.db/word2vec/corpus.txt", "ab");
     if (fp==NULL) exit(2);
     #pragma omp parallel for shared(jieba,fp)
     for (unsigned long i=0; i<n_records; ++i) {
