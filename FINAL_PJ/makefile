@@ -27,8 +27,8 @@ data_cleaning: data data_cleaning.sh
 	./data_cleaning.sh
 run_preprocessing: word2vec cppjieba parser gen_corpus gen_wiki_corpus wiki_data data
 	./parser && ./gen_corpus && ./gen_wiki_corpus
-	./word2vec/word2vec -train ./.db/word2vec/corpus.txt -output ./.db/word2vec/classes.txt -size 300 -window 5 -sample 1e-5 -hs 0 -threads 11 -iter 5 -min-count 3 -negative 10 -alpha 0.025 -binary 0 -cbow 0 -classes 30 
-	./word2vec/word2vec -train ./.db/word2vec/corpus.txt -output ./.db/word2vec/vector.bin  -size 300 -window 5 -sample 1e-5 -hs 0 -threads 11 -iter 5 -min-count 3 -negative 10 -alpha 0.025 -binary 1 -cbow 0 
+	./word2vec/word2vec -train ./.db/word2vec/corpus.txt -output ./.db/word2vec/classes.txt -size 300 -window 5 -sample 1e-5 -hs 1 -threads 11 -iter 5 -min-count 3 -alpha 0.025 -binary 0 -cbow 0 -classes 30 
+	./word2vec/word2vec -train ./.db/word2vec/corpus.txt -output ./.db/word2vec/vector.bin  -size 300 -window 5 -sample 1e-5 -hs 1 -threads 11 -iter 5 -min-count 3 -alpha 0.025 -binary 1 -cbow 0
 clean:
 	$(MAKE) -C kmeans clean
 	rm -rf cppjieba
