@@ -16,19 +16,14 @@ int main(int argc, char **argv) {
     char fpath[128];
     wstring key_s, read_line, sub;
     unsigned int value=0;
-    unsigned int skipN=100;
     unsigned int n_records=0;
     FILE *fp = NULL;
-    unordered_map<wstring, unsigned int> dict;
     unordered_map<wstring, unsigned int> word2class;
     unsigned int n_class=0;
-    if (argc!=2) exit(1);
-    skipN = atol(argv[1]);
     setlocale(LC_ALL, "");
 
     read_buff = new wchar_t[512];
 
-    read_words("./.db/word_count/total.cnt", skipN, read_buff, 511, dict);
     word2class = get_histogram_mapping("./.db/word2vec/classes.txt", &n_class, read_buff, 511);
 
     fp = fopen("./.db/counts", "r");
@@ -61,10 +56,6 @@ int main(int argc, char **argv) {
     delete[] read_buff; read_buff=NULL;
     assert(done_workers==n_records);
 
-    fclose(fp); fp=NULL;
-
-    fp = fopen("./.db/word_count/skip_cols.txt", "w");
-    fprintf(fp, "%u\n", skipN);
     fclose(fp); fp=NULL;
 
     fprintf(stderr, "\nDone!\n");

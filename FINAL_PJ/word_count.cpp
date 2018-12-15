@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
     if (fp==NULL) exit(3);
     // write to file
     for (auto e: *v) {
-        fwprintf(fp, L"%ls,%u\n", e.first.c_str(), e.second);
+        fwprintf(fp, L"%ls %u\n", e.first.c_str(), e.second);
     }
     delete v; v=NULL;
     return 0;

@@ -43,24 +43,6 @@ inline unsigned int *hist2vec(const std::unordered_map<std::wstring, unsigned in
     return feature;
 }
 
-inline unsigned int read_words(const char *fpath, unsigned int skipN, wchar_t *read_buffer, size_t read_buffer_size,\
-        std::unordered_map<std::wstring, unsigned int> &dict) {
-    using namespace std;
-    unsigned int n_features=0;
-    FILE *fp = NULL;
-    wstring key_s;
-    fp = fopen(fpath, "rb");
-    while(skipN-- && fgetws(read_buffer, read_buffer_size-1, fp)!=NULL); // skip first N words
-    while(fgetws(read_buffer, read_buffer_size-1, fp)!=NULL) {
-        wstringstream ss(read_buffer);
-        getline(ss, key_s, L',');
-        dict.insert({key_s, n_features});
-        ++n_features;
-    }
-    fclose(fp); fp=NULL;
-    return n_features;
-}
-
 inline std::unordered_map<std::wstring, unsigned int> read_histogram(const char *fpath, wchar_t *read_buffer, size_t read_buffer_size) {
     using namespace std;
     FILE *fp=NULL;
@@ -70,9 +52,7 @@ inline std::unordered_map<std::wstring, unsigned int> read_histogram(const char 
     fp = fopen(fpath, "rb");
     while(fgetws(read_buffer, read_buffer_size-1, fp)!=NULL) {
         wstringstream ss(read_buffer);
-        getline(ss, key_s, L',');
-        getline(ss, sub, L',');
-        value = stoul(sub);
+        ss>>key_s>>value;
         dict.insert({key_s, value});
     }
     fclose(fp); fp=NULL;
