@@ -18,7 +18,7 @@
 // End 中文 unicode 區
 
 __attribute__((always_inline)) std::vector<std::wstring> tokenize_jieba(wchar_t *wcs, const cppjieba::MixSegment &jieba) {
-    const wchar_t *tokens = L"。？！\r\b\t\n?!";
+    const wchar_t *tokens = L"。？！，、：（）“”‘’‛‟.,‚″˝；「」\r\b\t\n?!《》【】╱;";
     wchar_t *ptr=NULL, *ptr2=NULL;
     std::vector<std::wstring> words;
     if (wcs==NULL || *wcs==0) return words;
