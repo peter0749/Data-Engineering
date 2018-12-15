@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
             foutp = fopen(fpath, "wb");
             // write to file
             for (auto e: *v_local) {
-                fwprintf(foutp, L"%ls,%u\n", e.first.c_str(), e.second);
+                fwprintf(foutp, L"%ls %u\n", e.first.c_str(), e.second);
             }
             fclose(foutp);
             foutp=NULL;
