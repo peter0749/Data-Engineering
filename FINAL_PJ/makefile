@@ -26,4 +26,5 @@ clean:
 	rm -rf .db
 	rm -rf word2vec
 	rm -f parser word_count feature_extracter find_news_by_id gen_corpus
+	rm -f *.csv *.bin
 
