@@ -10,21 +10,27 @@ feature_extracter: feature_extracter.cpp read_histogram.hpp
 find_news_by_id: find_news_by_id.cpp record_structure_io.c
 	g++ find_news_by_id.cpp record_structure_io.c -std=gnu++11 -O2 -march=native -o find_news_by_id
 cppjieba:
-	git clone --depth=10 --branch=master git://github.com/yanyiwu/cppjieba.git
+	git clone --depth=1 --single-branch --branch=master git://github.com/yanyiwu/cppjieba.git
+	git -C cppjieba checkout 31eed035180582f45882d4587779754910be0951 -q
 	cp -r cppjieba/deps/limonp cppjieba/include/cppjieba
 	cp -r cppjieba/deps/gtest  cppjieba/include/cppjieba
 word2vec:
-	git clone https://github.com/tmikolov/word2vec
+	git clone --depth=1 --single-branch --branch=master https://github.com/tmikolov/word2vec
+	git -C word2vec checkout 20c129af10659f7c50e86e3be406df663beff438 -q
 	$(MAKE) -C word2vec
 compile_kmeans:
 	$(MAKE) -C kmeans kmeans
-run_preprocessing: word2vec cppjieba parser gen_corpus 
-	./parser && ./gen_corpus && ./word2vec/word2vec -train ./.db/word2vec/corpus.txt -output ./.db/word2vec/classes.txt -size 250 -window 5 -sample 1e-3 -hs 1 -threads 11 -iter 10 -min-count 5 -alpha 0.025 -binary 0 -cbow 1 -classes 30
+data_cleaning: data data_cleaning.sh
+	./data_cleaning.sh
+run_preprocessing: word2vec cppjieba parser gen_corpus
+	./parser && ./gen_corpus 
+	./word2vec/word2vec -train ./.db/word2vec/corpus.txt -output ./.db/word2vec/classes.txt -size 250 -window 5 -sample 1e-3 -hs 1 -threads 11 -iter 10 -min-count 3 -alpha 0.025 -binary 0 -cbow 1 -classes 30 
+	./word2vec/word2vec -train ./.db/word2vec/corpus.txt -output ./.db/word2vec/vector.bin -size 250 -window 5 -sample 1e-3 -hs 1 -threads 11 -iter 10 -min-count 3 -alpha 0.025 -binary 1 -cbow 1 
 clean:
 	$(MAKE) -C kmeans clean
 	rm -rf cppjieba
 	rm -rf .db
 	rm -rf word2vec
 	rm -f parser word_count feature_extracter find_news_by_id gen_corpus
-	rm -f *.csv *.bin
+	rm -f *.csv *.bin *.txt 
 
