@@ -221,6 +221,35 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
         if (verbose) fprintf(stderr, "[%d/%d] d:%.4lf, n:%.4lf\n", iter_counter, max_iter, mean_centroid_d, noise_amp);
         noise_amp *= delta;
     }
+    
+    if (verbose) {
+        double *intra_distance = NULL;
+        intra_distance = (double*)malloc(sizeof(double)*K);
+        memset(intra_distance, 0x00, sizeof(double)*K);
+        #pragma omp parallel shared(intra_distance, labels, data, centroids)
+        for (int i=0; i<rows; ++i) {
+            unsigned int k = labels[i];
+            intra_distance[k] += hist_intersection(data[i], centroids[k], cols);
+        }
+        for (int k=0; k<K; ++k) intra_distance[k] /= (double)(lab_counts[k]+1e-8);
+        fprintf(stderr, "mean data-centroid distance:\n");
+        for (int k=0; k<K; ++k) {
+            fprintf(stderr, "%3d: %.4f\n", k, intra_distance[k]);
+        }
+        free(intra_distance); intra_distance=NULL;
+        fprintf(stderr, "centroid-centroid distance:\n");
+        fprintf(stderr, "            ");
+        for (int i=0; i<K; ++i) fprintf(stderr, "%12d", i);
+        fprintf(stderr, "\n");
+        for (int i=0; i<K-1; ++i) {
+            // print upper traingle matrix
+            fprintf(stderr, "%12d", i);
+            for (int j=0; j<=i; ++j)  fprintf(stderr, "            ");
+            for (int j=i+1; j<K; ++j) fprintf(stderr, "%12.3f", hist_intersection_f(centroids[i], centroids[j], cols));
+            fprintf(stderr, "\n");
+        }
+        fprintf(stderr, "\n");
+    }
 
     for (int k=0; k<K; ++k) free(new_centroids[k]);
 
