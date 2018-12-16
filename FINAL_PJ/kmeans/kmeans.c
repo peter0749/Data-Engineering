@@ -117,28 +117,28 @@ double hist_intersection_f(double *P, double *Q, unsigned int cols) {
 }
 
 /*
-double hist_intersection(unsigned int *A, double *B, unsigned int cols) {
-    unsigned int intersect=0;
-    unsigned int onions=0;
-    for (unsigned int i=0; i<cols; ++i) {
-        intersect += (A[i]<B[i]?A[i]:B[i]);
-        onions += (A[i]>B[i]?A[i]:B[i]);
-    }
-    return 1.0 - (double)(intersect+1) / (double)(onions+1);
-}
+   double hist_intersection(unsigned int *A, double *B, unsigned int cols) {
+   unsigned int intersect=0;
+   unsigned int onions=0;
+   for (unsigned int i=0; i<cols; ++i) {
+   intersect += (A[i]<B[i]?A[i]:B[i]);
+   onions += (A[i]>B[i]?A[i]:B[i]);
+   }
+   return 1.0 - (double)(intersect+1) / (double)(onions+1);
+   }
 
-double hist_intersection_f(double *A, double *B, unsigned int cols) {
-    unsigned int intersect=0;
-    unsigned int onions=0;
-    for (unsigned int i=0; i<cols; ++i) {
-        intersect += (A[i]<B[i]?A[i]:B[i]);
-        onions += (A[i]>B[i]?A[i]:B[i]);
-    }
-    return 1.0 - (double)(intersect+1) / (double)(onions+1);
-}
-*/
+   double hist_intersection_f(double *A, double *B, unsigned int cols) {
+   unsigned int intersect=0;
+   unsigned int onions=0;
+   for (unsigned int i=0; i<cols; ++i) {
+   intersect += (A[i]<B[i]?A[i]:B[i]);
+   onions += (A[i]>B[i]?A[i]:B[i]);
+   }
+   return 1.0 - (double)(intersect+1) / (double)(onions+1);
+   }
+   */
 
-void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol, int max_iter, double noise_amp, double delta, char verbose) {
+double kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol, int max_iter, char verbose) {
     double mean_centroid_d = DBL_MAX;
     double **centroids = NULL;
     double **new_centroids = NULL;
@@ -200,11 +200,7 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
             }
         }
         for (int k=0; k<K; ++k) {
-            for (int j=0; j<cols; ++j) {
-                new_centroids[k][j] /= (double)(lab_counts[k]+1e-8); // mean
-                new_centroids[k][j] += ((double)rand() / (double)RAND_MAX * 2.0 - 1.0) * noise_amp; // noise = [-1,+1] * noise_amp (0-mean)
-                if (new_centroids[k][j]<0) new_centroids[k][j]=0;
-            }
+            for (int j=0; j<cols; ++j) new_centroids[k][j] /= (double)(lab_counts[k]+1e-8); // mean
         }
         mean_centroid_d = 0;
         for (int k=0; k<K; ++k) {
@@ -218,25 +214,35 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
             new_centroids[k] = ptr;
         }
         ++iter_counter;
-        if (verbose) fprintf(stderr, "[%d/%d] d:%.4lf, n:%.4lf\n", iter_counter, max_iter, mean_centroid_d, noise_amp);
-        noise_amp *= delta;
+        if (verbose) fprintf(stderr, "[%d/%d] d:%.4lf\n", iter_counter, max_iter, mean_centroid_d);
     }
-    
+
+    double *intra_distance = NULL;
+    intra_distance = (double*)malloc(sizeof(double)*K);
+    memset(intra_distance, 0x00, sizeof(double)*K);
+    #pragma omp parallel shared(intra_distance, labels, data, centroids)
+    for (int i=0; i<rows; ++i) {
+        unsigned int k = labels[i];
+        intra_distance[k] += hist_intersection(data[i], centroids[k], cols);
+    }
+    double mean_intra_distance = 0.0;
+    double max_intra_distance = 0.0;
+    for (int k=0; k<K; ++k) { 
+        if (intra_distance[k]>max_intra_distance) max_intra_distance = intra_distance[k];
+        mean_intra_distance += intra_distance[k];
+        intra_distance[k] /= (double)(lab_counts[k]+1e-8); 
+    }
+    mean_intra_distance /= (double)rows;
     if (verbose) {
-        double *intra_distance = NULL;
-        intra_distance = (double*)malloc(sizeof(double)*K);
-        memset(intra_distance, 0x00, sizeof(double)*K);
-        #pragma omp parallel shared(intra_distance, labels, data, centroids)
-        for (int i=0; i<rows; ++i) {
-            unsigned int k = labels[i];
-            intra_distance[k] += hist_intersection(data[i], centroids[k], cols);
-        }
-        for (int k=0; k<K; ++k) intra_distance[k] /= (double)(lab_counts[k]+1e-8);
         fprintf(stderr, "mean data-centroid distance:\n");
         for (int k=0; k<K; ++k) {
             fprintf(stderr, "%3d: %.4f\n", k, intra_distance[k]);
         }
-        free(intra_distance); intra_distance=NULL;
+        fprintf(stderr, "average: %.4f\n", mean_intra_distance);
+        fprintf(stderr, "maximum: %.4f\n", max_intra_distance);
+    }
+    free(intra_distance); intra_distance=NULL;
+    if (verbose) {
         fprintf(stderr, "centroid-centroid distance:\n");
         fprintf(stderr, "            ");
         for (int i=0; i<K; ++i) fprintf(stderr, "%12d", i);
@@ -260,4 +266,6 @@ void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, dou
     else free(centroids);
     if(return_labels!=NULL)   *return_labels   = labels;
     else free(labels);
+
+    return mean_intra_distance;
 }

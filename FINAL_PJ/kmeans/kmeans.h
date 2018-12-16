@@ -43,6 +43,6 @@ void load_kmeans_data(const char *fpath, kmeans_data *data_pak);
 double hist_intersection(unsigned int *P, double *Q, unsigned int cols);
 double hist_intersection_f(double *P, double *Q, unsigned int cols);
 
-void *kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol, int max_iter, double noise_amp, double delta, char verbose);
+double kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol, int max_iter, char verbose);
 
 #endif
