@@ -43,8 +43,8 @@ void load_kmeans_centroids(const char *fpath, kmeans_centroids *data_pak) {
     unsigned int n_rows=0, n_cols=0;
     fread(&n_rows, sizeof(unsigned int), 1, fp);
     fread(&n_cols, sizeof(unsigned int), 1, fp);
-    content = (double*)malloc(sizeof(double)*n_rows*n_cols);
-    fread(content, sizeof(double), n_rows*n_cols, fp);
+    content = (double*)malloc((long long)sizeof(double)*n_rows*n_cols);
+    fread(content, sizeof(double), (long long)n_rows*n_cols, fp);
     data_pak->n_rows = n_rows;
     data_pak->n_cols = n_cols;
     data_pak->_data = content;
@@ -59,7 +59,6 @@ void write_kmeans_centroids(const char *fpath, const kmeans_centroids *data_pak)
     fp = fopen(fpath, "wb");
     fwrite(&data_pak->n_rows, sizeof(unsigned int), 1, fp);
     fwrite(&data_pak->n_cols, sizeof(unsigned int), 1, fp);
-    // fwrite(data_pak->_data, sizeof(double), data_pak->n_rows*data_pak->n_cols, fp);
     for (unsigned int i=0; i<data_pak->n_rows; ++i) {
         fwrite(data_pak->data[i], sizeof(double), data_pak->n_cols, fp);
     }
@@ -80,8 +79,8 @@ void load_kmeans_data(const char *fpath, kmeans_data *data_pak) {
     unsigned int n_rows=0, n_cols=0;
     fread(&n_rows, sizeof(unsigned int), 1, fp);
     fread(&n_cols, sizeof(unsigned int), 1, fp);
-    content = (unsigned int*)malloc(sizeof(unsigned int)*n_rows*n_cols);
-    fread(content, sizeof(unsigned int), n_rows*n_cols, fp);
+    content = (unsigned int*)malloc((long long)sizeof(unsigned int)*n_rows*n_cols);
+    fread(content, sizeof(unsigned int), (long long)n_rows*n_cols, fp);
     data_pak->n_rows = n_rows;
     data_pak->n_cols = n_cols;
     data_pak->_data = content;
