@@ -176,7 +176,7 @@ double kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, do
     iter_counter=0;
     while(iter_counter<max_iter && mean_centroid_d>tol) {
         // determine labels
-        #pragma omp parallel for shared(data, centroids, labels)
+        #pragma omp parallel for shared(data, centroids, labels) schedule(static,1)
         for (int i=0; i<rows; ++i) {
             unsigned int best_l=0;
             double min_d=DBL_MAX;
@@ -220,11 +220,12 @@ double kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, do
     double *intra_distance = NULL;
     intra_distance = (double*)malloc(sizeof(double)*K);
     memset(intra_distance, 0x00, sizeof(double)*K);
-    #pragma omp parallel shared(intra_distance, labels, data, centroids)
+
     for (int i=0; i<rows; ++i) {
         unsigned int k = labels[i];
         intra_distance[k] += hist_intersection(data[i], centroids[k], cols);
     }
+
     double mean_intra_distance = 0.0;
     double max_intra_distance = 0.0;
     for (int k=0; k<K; ++k) { 
