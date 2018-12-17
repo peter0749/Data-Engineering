@@ -241,6 +241,10 @@ double kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, do
         }
         fprintf(stderr, "average: %.4f\n", mean_intra_distance);
         fprintf(stderr, "maximum: %.4f\n", max_intra_distance);
+        fprintf(stderr, "each class count:\n");
+        for (int k=0; k<K; ++k) {
+            fprintf(stderr, "%3d: %10d\n", k, lab_counts[k]);
+        }
     }
     free(intra_distance); intra_distance=NULL;
     if (verbose) {
