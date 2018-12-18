@@ -14,7 +14,7 @@
 #include "read_histogram.hpp"
 extern "C" double hist_intersection_d(unsigned int*, unsigned int*, unsigned int);
 
-const size_t  read_buffer_size=512;
+const size_t  read_buffer_size=8192;
 wchar_t       read_buffer[read_buffer_size];
 
 int main(int argc, char **argv) {
@@ -32,25 +32,31 @@ int main(int argc, char **argv) {
     cppjieba::MixSegment jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH);
     unordered_map<wstring, unsigned int> word_cnt, class_map;
     priority_queue< pair<double,unsigned int>, vector< pair<double,unsigned int> >, less< pair<double,unsigned int> > > max_heap;
-    wstring target, temp;
     setlocale(LC_ALL, "");
     if (argc<2) exit(4);
     topN = atol(argv[1]);
-    if (argc>=3) 
-        freopen(argv[2], "rb", stdin);
-    else 
-        wcin.sync_with_stdio(false);
+    if (argc>=3) freopen(argv[2], "rb", stdin);
     if (topN<1) topN=1;
-    wcin.tie(0);
-    while(wcin>>temp) {target += temp+L" "; temp.clear();} // read line
+    {
+        wchar_t ch=0;
+        size_t cnt=0;
+#ifdef __APPLE__
+        while ( (ch=fgetwc(stdin))!=EOF ) {
+#else
+        while ( (ch=fgetwc_unlocked(stdin))!=EOF ) {
+#endif
+            read_buffer[cnt++] = ch;
+        }
+        read_buffer[cnt] = 0;
+    }
 
     fp = fopen("./ipc_addr", "r");
-    if(fscanf(fp, "%d %d %d", &shm_id, &n_rows, &n_cols)!=3) {
+    if(fwscanf(fp, L"%d %d %d", &shm_id, &n_rows, &n_cols)!=3) {
         exit(1);
     }
     fclose(fp); fp=NULL;
 
-    word_cnt = jieba_wordcount(target, jieba);
+    word_cnt = jieba_wordcount(wstring(read_buffer), jieba);
     class_map = get_histogram_mapping("./.db/word2vec/classes.txt", &n_class, read_buffer, read_buffer_size);
     feature = hist2vec(word_cnt, class_map, n_class); // from C
 
@@ -79,7 +85,7 @@ int main(int argc, char **argv) {
         topN_id[i] = max_heap.top().second;
         max_heap.pop();
     }
-    for (int i=0; i<topN; ++i) wcout << topN_id[i] << L" " << distances[topN_id[i]] << L'\n';
+    for (int i=0; i<topN; ++i) fwprintf(stdout, L"%d %.2f\n", topN_id[i], distances[topN_id[i]]); 
 
     delete[] topN_id; topN_id=NULL;
     delete[] distances; distances=NULL;
