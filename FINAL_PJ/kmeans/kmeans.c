@@ -103,6 +103,19 @@ double hist_intersection(unsigned int *P, double *Q, unsigned int cols) {
     return JSD*JSD;
 }
 
+double hist_intersection_d(unsigned int *P, unsigned int *Q, unsigned int cols) {
+    double P_M = 0.0;
+    double Q_M = 0.0;
+    double JSD = 0.0;
+    for (unsigned int i=0; i<cols; ++i) {
+        double M_i = (double)(P[i]+Q[i]) / 2.0 + 1e-8;
+        P_M += (double)P[i]*log(((double)P[i]+1e-8) / M_i);
+        Q_M += (double)Q[i]*log(((double)Q[i]+1e-8) / M_i);
+    }
+    JSD = (P_M+Q_M) / 2.0;
+    return JSD*JSD;
+}
+
 double hist_intersection_f(double *P, double *Q, unsigned int cols) {
     double P_M = 0.0;
     double Q_M = 0.0;

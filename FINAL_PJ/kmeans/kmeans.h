@@ -41,6 +41,7 @@ void write_kmeans_centroids(const char *fpath, const kmeans_centroids *data_pak)
 void destroy_kmeans_data(kmeans_data *data_pak);
 void load_kmeans_data(const char *fpath, kmeans_data *data_pak);
 double hist_intersection(unsigned int *P, double *Q, unsigned int cols);
+double hist_intersection_d(unsigned int *P, unsigned int *Q, unsigned int cols);
 double hist_intersection_f(double *P, double *Q, unsigned int cols);
 
 double kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, double ***return_centroid, int rows, int cols, int K, double tol, int max_iter, char verbose);
