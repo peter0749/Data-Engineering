@@ -36,8 +36,12 @@ int main(int argc, char **argv) {
     setlocale(LC_ALL, "");
     if (argc<2) exit(4);
     topN = atol(argv[1]);
-    if (argc>=3) freopen(argv[2], "rb", stdin);
+    if (argc>=3) 
+        freopen(argv[2], "rb", stdin);
+    else 
+        wcin.sync_with_stdio(false);
     if (topN<1) topN=1;
+    wcin.tie(0);
     while(wcin>>temp) {target += temp+L" "; temp.clear();} // read line
 
     fp = fopen("./ipc_addr", "r");
@@ -75,7 +79,7 @@ int main(int argc, char **argv) {
         topN_id[i] = max_heap.top().second;
         max_heap.pop();
     }
-    for (int i=0; i<topN; ++i) wcout << topN_id[i] << L" " << distances[topN_id[i]] << endl;
+    for (int i=0; i<topN; ++i) wcout << topN_id[i] << L" " << distances[topN_id[i]] << L'\n';
 
     delete[] topN_id; topN_id=NULL;
     delete[] distances; distances=NULL;
