@@ -36,10 +36,11 @@ int main(int argc, char **argv) {
     if (argc<2) exit(4);
     topN = atol(argv[1]);
     if (argc>=3) freopen(argv[2], "rb", stdin);
+    class_map = get_histogram_mapping("./.db/word2vec/classes.txt", &n_class, read_buffer, read_buffer_size);
     if (topN<1) topN=1;
+    size_t cnt=0;
     {
         wchar_t ch=0;
-        size_t cnt=0;
 #ifdef __APPLE__
         while ( (ch=fgetwc(stdin))!=EOF ) {
 #else
@@ -56,8 +57,10 @@ int main(int argc, char **argv) {
     }
     fclose(fp); fp=NULL;
 
-    word_cnt = jieba_wordcount(wstring(read_buffer), jieba);
-    class_map = get_histogram_mapping("./.db/word2vec/classes.txt", &n_class, read_buffer, read_buffer_size);
+    word_cnt.reserve(cnt+1);
+    jieba_wordcount_inplace(wstring(read_buffer), jieba, word_cnt);
+    // fwprintf(stdout, L"Load factor(class): %.2f\n", class_map.load_factor());
+    // fwprintf(stdout, L"Load factor(count): %.2f\n", word_cnt.load_factor());
     feature = hist2vec(word_cnt, class_map, n_class); // from C
 
     _data = (unsigned int*)shmat(shm_id, NULL, 0);

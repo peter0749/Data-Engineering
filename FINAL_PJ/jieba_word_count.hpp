@@ -32,6 +32,18 @@ __attribute__((always_inline)) std::vector<std::wstring> tokenize_jieba(wchar_t 
     return words;
 }
 
+__attribute__((always_inline)) void jieba_wordcount_inplace(const std::wstring &str, const cppjieba::MixSegment &jieba, std::unordered_map<std::wstring, unsigned int> &pattern) {
+    std::vector<std::wstring> words;
+    wchar_t *wcs = new wchar_t[str.length()+1];
+    wcscpy(wcs, str.c_str());
+    words = tokenize_jieba(wcs, jieba);
+    for (const std::wstring &ws : words) {
+        if (pattern.count(ws)==0) pattern.insert(std::make_pair<const std::wstring&, unsigned int>(ws, 1u));
+        else ++pattern[ws];
+    }
+    delete[] wcs; wcs=NULL;
+}
+
 __attribute__((always_inline)) std::unordered_map<std::wstring, unsigned int> jieba_wordcount(const std::wstring &str, const cppjieba::MixSegment &jieba) {
     std::unordered_map<std::wstring, unsigned int> pattern;
     std::vector<std::wstring> words;
