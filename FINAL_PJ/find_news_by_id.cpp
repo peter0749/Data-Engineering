@@ -12,7 +12,8 @@
 #include "record_structure.h"
 
 int main(int argc, char **argv) {
-    setlocale(LC_ALL, "");
+    setlocale(LC_ALL, "zh_TW.UTF-8");
+    setlocale(LC_CTYPE, "zh_TW.UTF-8");
     using namespace std;
     news_record_structure record;
     FILE *fp=NULL;

@@ -8,8 +8,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <locale>
-#include <pthread.h>
-#include <omp.h>
+// #include <omp.h>
 #include "jieba_word_count.hpp"
 #include "read_histogram.hpp"
 
@@ -65,7 +64,8 @@ int main(int argc, char **argv) {
     cppjieba::MixSegment jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH);
     unordered_map<wstring, unsigned int> word_cnt, class_map;
     priority_queue< pair<double,unsigned int>, vector< pair<double,unsigned int> >, less< pair<double,unsigned int> > > max_heap;
-    setlocale(LC_ALL, "");
+    setlocale(LC_ALL, "zh_TW.UTF-8");
+    setlocale(LC_CTYPE, "zh_TW.UTF-8");
     if (argc<3) exit(4);
     topN = atol(argv[1]);
     normalize = argv[2][0]-'0';
@@ -77,19 +77,16 @@ int main(int argc, char **argv) {
     size_t cnt=0;
     {
         wchar_t ch=0;
-#ifdef __APPLE__
         while ( (ch=fgetwc(stdin))!=WEOF ) 
-#else
-        while ( (ch=fgetwc_unlocked(stdin))!=WEOF ) 
-#endif
         {
             read_buffer[cnt++] = ch;
         }
         read_buffer[cnt] = 0;
     }
 
-    fp = fopen("./ipc_addr", "r");
+    fp = fopen("./ipc_addr", "rb");
     if(fwscanf(fp, L"%d %d %d", &shm_id, &n_rows, &n_cols)!=3) {
+        fwprintf(stdout, L"%d %d %d\n", shm_id, n_rows, n_cols);
         exit(1);
     }
     fclose(fp); fp=NULL;
@@ -109,7 +106,7 @@ int main(int argc, char **argv) {
     distances = new double[n_rows];
     topN_id = new unsigned int[topN];
 
-    #pragma omp parallel for shared(distances,feature,data) schedule(static,1)
+    // #pragma omp parallel for shared(distances,feature_float,data)
     for (unsigned int i=0; i<n_rows; ++i) distances[i] = D_func(feature_float, data+n_cols*i, n_cols);
 
     for (int i=0; i<topN; ++i) max_heap.push({distances[i], i});

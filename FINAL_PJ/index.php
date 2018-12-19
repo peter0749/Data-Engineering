@@ -41,10 +41,10 @@
                 2 => array("file", "/dev/null", "wb") // stderr is a file to write to
             );
             $env = array(
-                'LC_ALL' => '', 
+                'LC_ALL' => 'zh_TW.UTF-8', 
+                'LC_CTYPE' => 'zh_TW.UTF-8', 
                 'LANG' => 'zh_TW.UTF-8',
-                'GDM_LANG' => 'zh_TW',
-                'LANGUAGE' => 'zh_TW:zh'
+                'LANGUAGE' => 'zh_TW.UTF-8'
             );
 
             $command = "./retrive_topN " . escapeshellarg($topN) . " " . escapeshellarg($normalize_histogram);

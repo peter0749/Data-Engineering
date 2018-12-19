@@ -12,11 +12,11 @@ feature_extracter: feature_extracter.cpp read_histogram.hpp
 find_news_by_id: find_news_by_id.cpp record_structure_io.c
 	g++ find_news_by_id.cpp record_structure_io.c -std=gnu++11 -O2 -march=native -o find_news_by_id
 loadData2Shm: loadData2Shm.c
-	gcc loadData2Shm.c -o loadData2Shm
+	gcc loadData2Shm.c -o loadData2Shm -std=c11
 closeShm: closeShm.c
-	gcc closeShm.c -o closeShm
+	gcc closeShm.c -o closeShm -std=c11
 retrive_topN: retrive_topN.cpp 
-	g++ retrive_topN.cpp -std=c++11 -openmp -fopenmp -lm -O3 --fast-math -march=native -o retrive_topN
+	g++ retrive_topN.cpp -std=c++11 -lm -O3 --fast-math -march=native -o retrive_topN
 cppjieba:
 	git clone --depth=1 --single-branch --branch=master git://github.com/yanyiwu/cppjieba.git
 	git -C cppjieba checkout 31eed035180582f45882d4587779754910be0951 -q
