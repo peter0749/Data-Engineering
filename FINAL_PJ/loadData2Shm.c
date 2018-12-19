@@ -13,27 +13,33 @@ int main(void) {
     FILE *fp=NULL;
     FILE *fin=NULL;
     int shm_id=0, n_rows=0, n_cols=0;
-    void *shm_ptr=NULL;
+    float *shm_ptr=NULL;
+    unsigned int *int_data=NULL;
     fp=fopen("./ipc_addr", "w");
     if (fp==NULL) exit(1);
     fin=fopen("./.db/word_count/features.bin", "rb");
     if (fin==NULL) exit(2);
     fread(&n_rows, sizeof(n_rows), 1, fin);
     fread(&n_cols, sizeof(n_cols), 1, fin);
-    shm_id = shmget(IPC_PRIVATE, (long long)n_rows*n_cols*sizeof(unsigned int), S_IRUSR | S_IWUSR | IPC_CREAT | IPC_EXCL);
+    int_data = (unsigned int*)malloc((long long)n_rows*n_cols*sizeof(unsigned int));
+    shm_id = shmget(IPC_PRIVATE, (long long)n_rows*n_cols*sizeof(float), S_IRUSR | S_IWUSR | IPC_CREAT | IPC_EXCL);
     if (shm_id<0) {
         perror("Error on shmget()");
         exit(3);
     }
     
-    shm_ptr = shmat(shm_id, NULL, 0);
-    if (shm_ptr==(char*)-1) {
+    shm_ptr = (float*)shmat(shm_id, NULL, 0);
+    if (shm_ptr==(float*)-1) {
         perror("Error on shmat()");
         exit(4);
     }
     
-    fread(shm_ptr, sizeof(unsigned int), (long long)n_rows*n_cols, fin);
+    fread(int_data, sizeof(unsigned int), (long long)n_rows*n_cols, fin);
     fclose(fin);
+
+    for (unsigned long long int i=0; i<(long long)n_rows*n_cols; ++i) 
+        shm_ptr[i] = (float)int_data[i];
+    free(int_data); int_data=NULL;
 
     if(shmdt(shm_ptr)==-1) {
         perror("Error on shmdt()");

@@ -26,6 +26,26 @@ double hist_intersection(float *P, float *Q, unsigned int cols) {
     return JSD*JSD;
 }
 
+double hist_intersection_normalized(float *P, float *Q, unsigned int cols) {
+    double P_M = 0.0;
+    double Q_M = 0.0;
+    double JSD = 0.0;
+    double P_S = 1e-6;
+    double Q_S = 1e-6;
+    for (unsigned int i=0; i<cols; ++i) {
+        P_S += P[i];
+        Q_S += Q[i];
+    }
+    for (unsigned int i=0; i<cols; ++i) {
+        float p=P[i]/P_S, q=Q[i]/Q_S;
+        float M_i = (p+q) / 2.0 + 1e-6;
+        P_M += p*log((p+1e-6) / M_i);
+        Q_M += q*log((q+1e-6) / M_i);
+    }
+    JSD = (P_M+Q_M) / 2.0;
+    return JSD*JSD;
+}
+
 const size_t  read_buffer_size=8192;
 wchar_t       read_buffer[read_buffer_size];
 
@@ -33,12 +53,12 @@ int main(int argc, char **argv) {
     using namespace std;
     int shm_id=0;
     unsigned int n_rows=0, n_cols=0;
-    unsigned int *_data=NULL;
     float *data=NULL;
     unsigned int *feature=NULL;
     float *feature_float=NULL;
     double *distances=NULL;
     unsigned int *topN_id = NULL;
+    double (*D_func)(float*, float*, unsigned int)=NULL;
     int topN=1;
     char normalize=0;
     FILE *fp = NULL;
@@ -49,6 +69,8 @@ int main(int argc, char **argv) {
     if (argc<3) exit(4);
     topN = atol(argv[1]);
     normalize = argv[2][0]-'0';
+    D_func = normalize?hist_intersection_normalized:hist_intersection;
+
     if (argc>=4) freopen(argv[3], "rb", stdin);
     class_map = get_histogram_mapping("./.db/word2vec/classes.txt", NULL, read_buffer, read_buffer_size);
     if (topN<1) topN=1;
@@ -74,35 +96,21 @@ int main(int argc, char **argv) {
 
     word_cnt.reserve(cnt+1);
     jieba_wordcount_inplace(wstring(read_buffer), jieba, word_cnt);
-    // fwprintf(stdout, L"Load factor(class): %.2f\n", class_map.load_factor());
-    // fwprintf(stdout, L"Load factor(count): %.2f\n", word_cnt.load_factor());
     feature = hist2vec(word_cnt, class_map, n_cols); // from C
     feature_float = new float[n_cols];
     for (unsigned int i=0; i<n_cols; ++i) feature_float[i] = (float)feature[i];
 
-    _data = (unsigned int*)shmat(shm_id, NULL, 0);
-    if (_data==(unsigned int*)-1) {
+    data = (float*)shmat(shm_id, NULL, 0);
+    if (data==(float*)-1) {
         perror("Error on shmat()");
         exit(2);
     }
 
-    data = new float [(long long)n_rows*n_cols];
     distances = new double[n_rows];
     topN_id = new unsigned int[topN];
-    for (unsigned int i=0; i<n_rows; ++i) {
-        float col_sum=0.0;
-        for (unsigned int j=0; j<n_cols; ++j) {
-            float e = (float)(*(_data+n_cols*i+j));
-            data[n_cols*i+j] = e;
-            col_sum += e;
-        }
-        if (normalize && col_sum>1) {
-            for (unsigned int j=0; j<n_cols; ++j) data[n_cols*i+j] /= col_sum;
-        } 
-    }
 
     #pragma omp parallel for shared(distances,feature,data) schedule(static,1)
-    for (unsigned int i=0; i<n_rows; ++i) distances[i] = hist_intersection(feature_float, data+n_cols*i, n_cols);
+    for (unsigned int i=0; i<n_rows; ++i) distances[i] = D_func(feature_float, data+n_cols*i, n_cols);
 
     for (int i=0; i<topN; ++i) max_heap.push({distances[i], i});
     for (unsigned int i=topN; i<n_rows; ++i) {
@@ -121,11 +129,10 @@ int main(int argc, char **argv) {
 
     delete[] topN_id; topN_id=NULL;
     delete[] distances; distances=NULL;
-    delete[] data; data=NULL;
     delete[] feature_float; feature_float=NULL;
     free(feature); feature=NULL;
 
-    if (shmdt(_data)==-1) {
+    if (shmdt(data)==-1) {
         perror("Error on shmdt()");
         exit(3);
     }
