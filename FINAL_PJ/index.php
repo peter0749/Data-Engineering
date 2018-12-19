@@ -18,6 +18,7 @@
             <?php
             header("content-type:text/html;charset=utf-8");
             mb_internal_encoding("UTF-8");
+            $start_time = microtime(True);
             $search_pattern = " ";
             if (isset($_POST["search"])) {
                 $search_pattern = stripslashes($_POST["search"]);
@@ -86,6 +87,9 @@
                 }
                 echo "</table></div>";   
             }
+            $end_time = microtime(True);
+            $elapsed_time = $end_time - $start_time;
+            echo "<br/><div align=\"right\">搜尋時間：" . number_format($elapsed_time, 2) . " 秒";
             ?>
         </body>
 </html>
