@@ -13,7 +13,7 @@
 #include "jieba_word_count.hpp"
 #include "read_histogram.hpp"
 
-double hist_intersection(float *P, float *Q, unsigned int cols) {
+double hist_intersection(const float *P, const float *Q, unsigned int cols) {
     double P_M = 0.0;
     double Q_M = 0.0;
     double JSD = 0.0;
@@ -26,7 +26,7 @@ double hist_intersection(float *P, float *Q, unsigned int cols) {
     return JSD*JSD;
 }
 
-double hist_intersection_normalized(float *P, float *Q, unsigned int cols) {
+double hist_intersection_normalized(const float *P, const float *Q, unsigned int cols) {
     double P_M = 0.0;
     double Q_M = 0.0;
     double JSD = 0.0;
@@ -53,12 +53,12 @@ int main(int argc, char **argv) {
     using namespace std;
     int shm_id=0;
     unsigned int n_rows=0, n_cols=0;
-    float *data=NULL;
+    const float *data=NULL;
     unsigned int *feature=NULL;
     float *feature_float=NULL;
     double *distances=NULL;
     unsigned int *topN_id = NULL;
-    double (*D_func)(float*, float*, unsigned int)=NULL;
+    double (*D_func)(const float*, const float*, unsigned int)=NULL;
     int topN=1;
     char normalize=0;
     FILE *fp = NULL;
@@ -78,9 +78,9 @@ int main(int argc, char **argv) {
     {
         wchar_t ch=0;
 #ifdef __APPLE__
-        while ( (ch=fgetwc(stdin))!=EOF ) 
+        while ( (ch=fgetwc(stdin))!=WEOF ) 
 #else
-        while ( (ch=fgetwc_unlocked(stdin))!=EOF ) 
+        while ( (ch=fgetwc_unlocked(stdin))!=WEOF ) 
 #endif
         {
             read_buffer[cnt++] = ch;
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
     feature_float = new float[n_cols];
     for (unsigned int i=0; i<n_cols; ++i) feature_float[i] = (float)feature[i];
 
-    data = (float*)shmat(shm_id, NULL, 0);
+    data = (float*)shmat(shm_id, NULL, SHM_RDONLY);
     if (data==(float*)-1) {
         perror("Error on shmat()");
         exit(2);

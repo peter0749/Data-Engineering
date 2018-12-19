@@ -14,10 +14,10 @@
 #include "jieba_word_count.hpp"
 
 inline unsigned long read_article(const char *fpath, wchar_t *buffer, size_t buffer_limit) {
-    wchar_t ch=EOF;
+    wchar_t ch=WEOF;
     FILE *fp = fopen(fpath, "rb");
     unsigned long cnt=0;
-    while(cnt<buffer_limit-1 && (ch = fgetwc(fp))!=EOF) {
+    while(cnt<buffer_limit-1 && (ch = fgetwc(fp))!=WEOF) {
         buffer[cnt] = ch;
         ++cnt;
     }

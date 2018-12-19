@@ -22,7 +22,7 @@ int main(void) {
     fread(&n_rows, sizeof(n_rows), 1, fin);
     fread(&n_cols, sizeof(n_cols), 1, fin);
     int_data = (unsigned int*)malloc((long long)n_rows*n_cols*sizeof(unsigned int));
-    shm_id = shmget(IPC_PRIVATE, (long long)n_rows*n_cols*sizeof(float), S_IRUSR | S_IWUSR | IPC_CREAT | IPC_EXCL);
+    shm_id = shmget(IPC_PRIVATE, (long long)n_rows*n_cols*sizeof(float), S_IRUSR | S_IWUSR | IPC_CREAT | IPC_EXCL | 0644);
     if (shm_id<0) {
         perror("Error on shmget()");
         exit(3);
