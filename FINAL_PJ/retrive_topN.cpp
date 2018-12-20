@@ -7,6 +7,7 @@
 #include <queue>
 #include <algorithm>
 #include <locale>
+#include <cmath>
 #include <omp.h>
 #include "flat_hash_map.hpp"
 #include "cppjieba/include/cppjieba/MixSegment.hpp"
