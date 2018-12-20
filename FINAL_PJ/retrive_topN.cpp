@@ -5,12 +5,70 @@
 #include <string>
 #include <vector>
 #include <queue>
-#include <unordered_map>
 #include <algorithm>
 #include <locale>
 #include <omp.h>
-#include "jieba_word_count.hpp"
-#include "read_histogram.hpp"
+#include "flat_hash_map.hpp"
+#include "cppjieba/include/cppjieba/MixSegment.hpp"
+#include "wstringcvt.hpp"
+#define DICT_PATH "cppjieba/dict/jieba.dict.utf8"
+#define HMM_PATH "cppjieba/dict/hmm_model.utf8"
+#define USER_DICT_PATH "cppjieba/dict/user.dict.utf8"
+
+__attribute__((always_inline)) void get_histogram_mapping_inline(const char *fpath, ska::flat_hash_map<std::wstring, unsigned int> &word2class, wchar_t *buffer, size_t buffer_size) {
+    FILE *fp=NULL;
+    std::wstring read_line;
+    std::wstring key;
+    unsigned int label;
+    fp = fopen(fpath, "rb");
+    while(fgetws(buffer, buffer_size-1, fp)!=NULL) {
+        std::wstringstream ss(buffer);
+        ss>>key>>label;
+        word2class.insert({key,label});
+    }
+    fclose(fp); fp=NULL;
+}
+
+__attribute__((always_inline)) unsigned int *hist2vec(const ska::flat_hash_map<std::wstring, unsigned int> &local_map, const ska::flat_hash_map<std::wstring, unsigned int> &key2class, unsigned int n_class) {
+    using namespace std;
+    unsigned int *feature = NULL;
+    feature = new unsigned int[n_class];
+    fill(feature, feature+n_class, 0); // initialize histogram feature
+    for (const auto &f : local_map) {
+        const auto iter = key2class.find(f.first);
+        if (iter!=key2class.end()) {
+            feature[ iter->second  ] += f.second;
+        }
+    }
+    return feature;
+}
+
+__attribute__((always_inline)) std::vector<std::wstring> tokenize_jieba(wchar_t *wcs, const cppjieba::MixSegment &jieba) {
+    const wchar_t *tokens = L"。？！，、：（）“”‘’‛‟.,‚″˝；「」\r\b\t\n?!《》【】╱;";
+    wchar_t *ptr=NULL, *ptr2=NULL;
+    std::vector<std::wstring> words;
+    if (wcs==NULL || *wcs==0) return words;
+    ptr = wcstok(wcs, tokens, &ptr2);
+    while(ptr!=NULL) {
+        std::vector<std::string> words_n;
+        jieba.Cut(WstringToString(std::wstring(ptr)), words_n, true);
+        for (const auto &s: words_n) words.push_back(StringToWstring(s));
+        ptr = wcstok(NULL, tokens, &ptr2);
+    }
+    return words;
+}
+
+__attribute__((always_inline)) void jieba_wordcount_inplace(const std::wstring &str, const cppjieba::MixSegment &jieba, ska::flat_hash_map<std::wstring, unsigned int> &pattern) {
+    std::vector<std::wstring> words;
+    wchar_t *wcs = new wchar_t[str.length()+1];
+    wcscpy(wcs, str.c_str());
+    words = tokenize_jieba(wcs, jieba);
+    for (const std::wstring &ws : words) {
+        if (pattern.count(ws)==0) pattern.insert(std::make_pair<const std::wstring&, unsigned int>(ws, 1u));
+        else ++pattern[ws];
+    }
+    delete[] wcs; wcs=NULL;
+}
 
 double hist_intersection(const float *P, const float *Q, unsigned int cols) {
     double P_M = 0.0;
@@ -62,7 +120,7 @@ int main(int argc, char **argv) {
     char normalize=0;
     FILE *fp = NULL;
     cppjieba::MixSegment jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH);
-    unordered_map<wstring, unsigned int> word_cnt, class_map;
+    ska::flat_hash_map<wstring, unsigned int> word_cnt, class_map;
     priority_queue< pair<double,unsigned int>, vector< pair<double,unsigned int> >, less< pair<double,unsigned int> > > max_heap;
     setlocale(LC_ALL, "zh_TW.UTF-8");
     setlocale(LC_CTYPE, "zh_TW.UTF-8");
@@ -72,7 +130,8 @@ int main(int argc, char **argv) {
     D_func = normalize?hist_intersection_normalized:hist_intersection;
 
     if (argc>=4) freopen(argv[3], "rb", stdin);
-    class_map = get_histogram_mapping("./.db/word2vec/classes.txt", NULL, read_buffer, read_buffer_size);
+    class_map.reserve(700000);
+    get_histogram_mapping_inline("./.db/word2vec/classes.txt", class_map, read_buffer, read_buffer_size);
     if (topN<1) topN=1;
     size_t cnt=0;
     {
@@ -106,7 +165,7 @@ int main(int argc, char **argv) {
     distances = new double[n_rows];
     topN_id = new unsigned int[topN];
 
-    #pragma omp parallel for shared(distances,feature_float,data)
+    #pragma omp parallel for simd shared(distances,feature_float,data)
     for (unsigned int i=0; i<n_rows; ++i) distances[i] = D_func(feature_float, data+n_cols*i, n_cols);
 
     for (int i=0; i<topN; ++i) max_heap.push({distances[i], i});
