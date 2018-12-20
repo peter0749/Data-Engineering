@@ -16,7 +16,7 @@ loadData2Shm: loadData2Shm.c
 closeShm: closeShm.c
 	gcc closeShm.c -o closeShm -std=c11
 retrive_topN: retrive_topN.cpp 
-	g++ retrive_topN.cpp -std=c++11 -lm -O3 --fast-math -march=native -o retrive_topN
+	g++ retrive_topN.cpp -std=c++11 -openmp -fopenmp -lm -O3 --fast-math -march=native -o retrive_topN
 cppjieba:
 	git clone --depth=1 --single-branch --branch=master git://github.com/yanyiwu/cppjieba.git
 	git -C cppjieba checkout 31eed035180582f45882d4587779754910be0951 -q

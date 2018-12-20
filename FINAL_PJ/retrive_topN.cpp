@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <locale>
-// #include <omp.h>
+#include <omp.h>
 #include "jieba_word_count.hpp"
 #include "read_histogram.hpp"
 
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
     distances = new double[n_rows];
     topN_id = new unsigned int[topN];
 
-    // #pragma omp parallel for shared(distances,feature_float,data)
+    #pragma omp parallel for shared(distances,feature_float,data)
     for (unsigned int i=0; i<n_rows; ++i) distances[i] = D_func(feature_float, data+n_cols*i, n_cols);
 
     for (int i=0; i<topN; ++i) max_heap.push({distances[i], i});
