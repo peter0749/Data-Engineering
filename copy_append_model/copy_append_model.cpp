@@ -43,7 +43,7 @@ std::string copy_append_encoder(const unsigned char *fileA, const unsigned char 
     /* Generate Kgram index for fileA */
     for (int i=0; i<A_len; ++i) {
         int l = min((int)(i+K_size), A_len) - i;
-        kgramA.insert({string(((char*)fileA)+i, l), i});
+        kgramA.insert({string((char*)(fileA+i), l), i});
     }
     
     string lastKgramB;
@@ -52,7 +52,7 @@ std::string copy_append_encoder(const unsigned char *fileA, const unsigned char 
     while (B_index<B_len) {
         int l = min((int)(B_index+K_size), B_len) - B_index;
         int m;
-        string kgramB(((char*)fileB)+B_index, l);
+        string kgramB((char*)(fileB+B_index), l);
         if (kgramA.count(kgramB)==0) {
             string append_msg; 
             if (last_msg_length>0) delta.resize(delta.length()-last_msg_length);
