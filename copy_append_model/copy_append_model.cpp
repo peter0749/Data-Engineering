@@ -6,6 +6,8 @@
 #include <sstream>
 #include <climits>
 #include <algorithm>
+#include <pthread.h>
+#include <omp.h>
 #include "flat_hash_map.hpp"
 #include "SegmentTree.hpp"
 #include "filereader.hpp"
@@ -20,15 +22,19 @@ std::pair<int,int> find_longest_match(int *sa, int *rank, SegmentTree *lcpa_tree
     int M=0, L=0;
     int B_srt_sa_pos = rank[offset];
 
+    #pragma omp parallel for shared(rank, B_srt_sa_pos, lcpa_tree, L, M) schedule(dynamic)
     for (int m=0; m<A_len; ++m) {
         int A_srt_sa_pos = rank[m];
         int s = min(A_srt_sa_pos, B_srt_sa_pos);
         int t = max(A_srt_sa_pos, B_srt_sa_pos);
-        if (s+1>t) continue; // illigal
-        int l = lcpa_tree->query(s+1, t); // [s+1, t]
-        if (l>L) {
-            L = l;
-            M = m;
+        // if (s+1>t) continue; // illigal
+        int l = (s+1>t)?INT_MAX:lcpa_tree->query(s+1, t); // [s+1, t]
+        #pragma omp critical(update_L)
+        {
+            if (l>L) {
+                L = l;
+                M = m;
+            }
         }
     }
 

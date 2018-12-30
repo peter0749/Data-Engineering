@@ -11,7 +11,7 @@ class SegmentTree {
     int  *seg; 
     SegmentTree (const int *array, int N) : N(N), from_array(array) {
         using std::fill;
-        int n=N*3+5;
+        int n=N*4+5;
         this->seg  = new int[n];
         fill(this->seg,  this->seg+n,  INT_MAX);
         __build(1, N, 1);
