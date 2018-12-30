@@ -32,11 +32,12 @@ inline std::pair<int,int> find_longest_match(const unsigned char *fileA, const u
     return {M,L};
 }
 
-void copy_append_encoder(const unsigned char *fileA, const unsigned char *fileB, \
+std::string copy_append_encoder(const unsigned char *fileA, const unsigned char *fileB, \
                          int A_len, int B_len, unsigned int K_size) {
     using namespace std;
     int B_index=0;
     ska::flat_hash_map<string, int> kgramA;
+    string delta;
     int *z_buffer = new int[A_len+B_len+5];
 
     /* Generate Kgram index for fileA */
@@ -45,15 +46,21 @@ void copy_append_encoder(const unsigned char *fileA, const unsigned char *fileB,
         kgramA.insert({string((char*)fileA, i, l), i});
     }
     
+    string lastKgramB;
+    int last_msg_length = 0;
+
     while (B_index<B_len) {
         int l = min((int)(B_index+K_size), B_len) - B_index;
         int m;
         string kgramB((char*)fileB, B_index, l);
         if (kgramA.count(kgramB)==0) {
             string append_msg; 
-            append_msg += "a " + to_string(l);
-            append_msg += "\n" + kgramB;
-            fwrite(append_msg.c_str(), sizeof(char), append_msg.length(), stdout);
+            if (last_msg_length>0) delta.resize(delta.length()-last_msg_length);
+            lastKgramB += kgramB;
+            append_msg += "a " + to_string(lastKgramB.length());
+            append_msg += "\n" + lastKgramB;
+            delta += append_msg;
+            last_msg_length = append_msg.length();
         } else {
             /* Find longest match between A and B[B_index:] */
             pair<int,int> ML = find_longest_match(fileA, fileB+B_index, A_len, B_len-B_index, z_buffer);
@@ -63,10 +70,15 @@ void copy_append_encoder(const unsigned char *fileA, const unsigned char *fileB,
             copy_msg += "c " + to_string(m);
             copy_msg += ","  + to_string(l);
             copy_msg += "\n";
-            fwrite(copy_msg.c_str(), sizeof(char), copy_msg.length(), stdout);
+            delta += copy_msg;
+            lastKgramB.clear();
+            last_msg_length = 0;
         }
         B_index += l;
     }
+    lastKgramB.clear();
+    if (z_buffer!=NULL) delete[] z_buffer; z_buffer=NULL;
+    return delta;
 }
 
 int main(int argc, char **argv) {
@@ -75,6 +87,7 @@ int main(int argc, char **argv) {
     unsigned char *fileA=NULL, *fileB=NULL;
     int fileA_len=0, fileB_len=0;
     int K_size=5;
+    string delta;
     if (argc!=4) {
         fprintf(stderr, "./copy_append_model fileA fileB K_size\n");
         exit(1);
@@ -84,7 +97,8 @@ int main(int argc, char **argv) {
     fileB_len = open_n_read_file(argv[2], &fileB);
     K_size = atoi(argv[3]);
 
-    copy_append_encoder(fileA, fileB, fileA_len, fileB_len, K_size);
+    delta = copy_append_encoder(fileA, fileB, fileA_len, fileB_len, K_size);
+    fwrite(delta.c_str(), sizeof(char), delta.length(), stdout);
 
     if (fileA!=NULL) delete[] fileA; fileA=NULL;
     if (fileB!=NULL) delete[] fileB; fileB=NULL;
