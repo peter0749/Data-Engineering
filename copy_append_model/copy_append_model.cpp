@@ -6,77 +6,38 @@
 #include <sstream>
 #include <climits>
 #include <algorithm>
-#include <pthread.h>
-#include <omp.h>
 #include "flat_hash_map.hpp"
-#include "SegmentTree.hpp"
 #include "filereader.hpp"
 
-extern "C" int sais(const unsigned char*, int*, int);
-
-std::pair<int,int> find_longest_match(int *sa, int *rank, SegmentTree *lcpa_tree, unsigned char *str, int N, int offset, int A_len) {
-    /* Find longest match between A and B. 
-     * That is arg_{L,M}_max_{L} { A[M:M+L] == B[0:L] for all A and B in range }
-     * A: 0~offset-1, B: offset~N-1 */
-    using namespace std;
-    int M=0, L=0;
-    int B_srt_sa_pos = rank[offset];
-
-    #pragma omp parallel for shared(rank, B_srt_sa_pos, lcpa_tree, L, M) schedule(dynamic)
-    for (int m=0; m<A_len; ++m) {
-        int A_srt_sa_pos = rank[m];
-        int s = min(A_srt_sa_pos, B_srt_sa_pos);
-        int t = max(A_srt_sa_pos, B_srt_sa_pos);
-        // if (s+1>t) continue; // illigal
-        int l = (s+1>t)?INT_MAX:lcpa_tree->query(s+1, t); // [s+1, t]
-        #pragma omp critical(update_L)
-        {
-            if (l>L) {
-                L = l;
-                M = m;
-            }
+inline std::pair<int,int> find_longest_match(const unsigned char *fileA, const unsigned char *fileB, int A_len, int B_len, int *z) {
+    memset(z, 0x00, sizeof(int)*(A_len+B_len));
+#define s(i) (i<B_len?fileB[i]:fileA[i-B_len])
+    int l=0, r=0;
+    z[0] = A_len+B_len;
+    for (int i=0; i<A_len+B_len; ++i) {
+        z[i] = i>0? 0 : (i-l+z[i-l]<z[l] ? z[i-l] : r-i+1);
+        while(i+z[i]<A_len+B_len && s(i+z[i])==s(z[i])) ++z[i];
+        if (i+z[i]-1>r) r = i+z[i]-1, l=i;
+    }
+#undef s
+    int L=z[B_len];
+    int M=0;
+    for (int i=B_len+1; i<A_len+B_len; ++i) {
+        if (z[i]>L) {
+            L = z[i];
+            M = i-B_len;
         }
     }
-
+    if (L>B_len) L = B_len; // Although this happen, the value of M is correct.
     return {M,L};
 }
 
 void copy_append_encoder(const unsigned char *fileA, const unsigned char *fileB, \
                          int A_len, int B_len, unsigned int K_size) {
     using namespace std;
-    unsigned char *longest_match_buffer=NULL;
     int B_index=0;
     ska::flat_hash_map<string, int> kgramA;
-    unsigned char *catAB = NULL;
-    int *sa = NULL, *lcpa = NULL, *rank = NULL;
-    SegmentTree *lcpa_tree=NULL;
-    catAB = new unsigned char[B_len+A_len+5];
-    memcpy(catAB,       fileA, A_len*sizeof(unsigned char));
-    memcpy(catAB+A_len, fileB, B_len*sizeof(unsigned char));
-    sa = new int[B_len+A_len+5];
-
-    /* Create suffix array */
-    sais(catAB, sa, B_len+A_len);
-    lcpa = new int[B_len+A_len+5];
-    rank = new int[B_len+A_len+5];
-
-    /* Create rank array (inverse of suffix array) */
-    for (int i=0; i<A_len+B_len; ++i) rank[sa[i]] = i;
-
-    /* Create longest common prefix array */
-    for (int i=0, lcp=0; i<A_len+B_len; ++i) {
-        if (rank[i]==0) lcpa[0]=0;
-        else {
-            int j = sa[rank[i]-1];
-            if (lcp>0) --lcp;
-            while (catAB[i+lcp]==catAB[j+lcp]) ++lcp;
-            lcpa[rank[i]] = lcp;
-        }
-    }
-
-    /* Create Segment Tree */
-    lcpa_tree = new SegmentTree(lcpa, A_len+B_len);
-    if (lcpa!=NULL) delete[] lcpa; lcpa=NULL;
+    int *z_buffer = new int[A_len+B_len+5];
 
     /* Generate Kgram index for fileA */
     for (int i=0; i<A_len; ++i) {
@@ -95,7 +56,7 @@ void copy_append_encoder(const unsigned char *fileA, const unsigned char *fileB,
             fwrite(append_msg.c_str(), sizeof(char), append_msg.length(), stdout);
         } else {
             /* Find longest match between A and B[B_index:] */
-            pair<int,int> ML = find_longest_match(sa,rank,lcpa_tree,catAB,A_len+B_len,A_len+B_index,A_len);
+            pair<int,int> ML = find_longest_match(fileA, fileB+B_index, A_len, B_len-B_index, z_buffer);
             m = ML.first;
             l = ML.second;
             string copy_msg;
@@ -106,10 +67,6 @@ void copy_append_encoder(const unsigned char *fileA, const unsigned char *fileB,
         }
         B_index += l;
     }
-    if (lcpa_tree!=NULL) delete lcpa_tree; lcpa_tree=NULL;
-    if (catAB!=NULL) delete[] catAB; catAB=NULL;
-    if (sa!=NULL) delete[] sa; sa=NULL;
-    if (rank!=NULL) delete[] rank; rank=NULL;
 }
 
 int main(int argc, char **argv) {
