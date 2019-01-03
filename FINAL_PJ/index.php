@@ -7,7 +7,7 @@
         <body>
             <form action="?" method="post">
                 <div class="form-group", align="left">
-                    <textarea rows="10" cols="80" type="search" id="search" name="search" >請輸入欲搜尋文章內文</textarea>
+                <textarea rows="10" cols="80" type="search" id="search" name="search" ><?php if (isset($_POST["search"])) { echo $_POST["search"];  } else { echo "請輸入欲搜尋文章內文"; } ?></textarea>
                     <br/>
                     <label for="number">顯示前幾筆：</label>
                     <input type="number" id="topN" name="topN" min="1" max="1000">
