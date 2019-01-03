@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
     using namespace std;
     unsigned char *fileA=NULL, *fileB=NULL;
     int fileA_len=0, fileB_len=0;
-    const int K_size=24;
+    const int K_size=12;
     vector< pair<int,int> > copy_ranges;
     
     fscanf(stdin, "%d %d\n", &fileA_len, &fileB_len);
