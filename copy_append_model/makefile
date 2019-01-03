@@ -1,4 +1,4 @@
-FLAGS=-march=native -O3
+FLAGS=-march=native -O3 -std=c++11 -Wno-unused-result
 all: copy_append_model delta_resolver
 delta_resolver: delta_resolver.cpp filereader.hpp
 	g++ delta_resolver.cpp ${FLAGS} -o delta_resolver

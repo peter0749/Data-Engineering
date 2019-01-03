@@ -6,10 +6,13 @@
 #include <sstream>
 #include <climits>
 #include <algorithm>
+#include <vector>
 #include "flat_hash_map.hpp"
 #include "filereader.hpp"
 
-inline std::pair<int,int> find_longest_match(const unsigned char *fileA, const unsigned char *fileB, int A_len, int B_len, int *z) {
+inline std::pair<int,int> find_longest_match(const unsigned char *fileA, const std::vector<int> &shortcut_index, const unsigned char *fileB, int A_len, int B_len, int *z) {
+    fileA += shortcut_index[0];
+    A_len -= shortcut_index[0];
     memset(z, 0x00, sizeof(int)*(A_len+B_len));
 #define s(i) (i<B_len?fileB[i]:fileA[i-B_len])
     int l=0, r=0;
@@ -21,11 +24,13 @@ inline std::pair<int,int> find_longest_match(const unsigned char *fileA, const u
     }
 #undef s
     int L=z[B_len];
-    int M=0;
-    for (int i=B_len+1; i<A_len+B_len; ++i) {
-        if (z[i]>L) {
-            L = z[i];
-            M = i-B_len;
+    int M=shortcut_index[0];
+    for (auto v : shortcut_index) {
+        int m = v+B_len-shortcut_index[0];
+        int l = z[m];
+        if (l>L) {
+            L = l;
+            M = m-B_len+shortcut_index[0];
         }
     }
     if (L>B_len) L = B_len; // Although this happen, the value of M is correct.
@@ -36,14 +41,16 @@ std::string copy_append_encoder(const unsigned char *fileA, const unsigned char 
                          int A_len, int B_len, unsigned int K_size) {
     using namespace std;
     int B_index=0;
-    ska::flat_hash_map<string, int> kgramA;
+    ska::flat_hash_map<string, vector<int> > kgramA;
     string delta;
     int *z_buffer = new int[A_len+B_len+5];
 
     /* Generate Kgram index for fileA */
     for (int i=0; i<A_len; ++i) {
         int l = min((int)(i+K_size), A_len) - i;
-        kgramA.insert({string((char*)(fileA+i), l), i});
+        string ss((char*)(fileA+i), l);
+        if(kgramA.count(ss)==0) kgramA.insert({ss, vector<int>(1, i)});
+        else kgramA[ss].push_back(i);
     }
     
     string lastKgramB;
@@ -63,7 +70,7 @@ std::string copy_append_encoder(const unsigned char *fileA, const unsigned char 
             last_msg_length = append_msg.length();
         } else {
             /* Find longest match between A and B[B_index:] */
-            pair<int,int> ML = find_longest_match(fileA, fileB+B_index, A_len, B_len-B_index, z_buffer);
+            pair<int,int> ML = find_longest_match(fileA, kgramA[kgramB], fileB+B_index, A_len, B_len-B_index, z_buffer);
             m = ML.first;
             l = ML.second;
             string copy_msg;
