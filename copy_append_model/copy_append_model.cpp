@@ -11,16 +11,20 @@
 #include "filereader.hpp"
 
 inline std::pair<int,int> find_longest_match(const unsigned char *fileA, const std::vector<int> &shortcut_index, const unsigned char *fileB, int A_len, int B_len, int *z) {
+    using std::min;
+    using std::max;
     fileA += shortcut_index[0];
     A_len -= shortcut_index[0];
     memset(z, 0x00, sizeof(int)*(A_len+B_len));
 #define s(i) (i<B_len?fileB[i]:fileA[i-B_len])
+    // From Eddy's codebook:
     int l=0, r=0;
-    z[0] = A_len+B_len;
-    for (int i=0; i<A_len+B_len; ++i) {
-        z[i] = i>0? 0 : (i-l+z[i-l]<z[l] ? z[i-l] : r-i+1);
-        while(i+z[i]<A_len+B_len && s(i+z[i])==s(z[i])) ++z[i];
-        if (i+z[i]-1>r) r = i+z[i]-1, l=i;
+    z[0]=A_len+B_len;
+    for (int i=1; i<A_len+B_len; ++i) {
+        int j = max(min(z[i-l],r-i),0);
+        while(i+j<A_len+B_len&&s(i+j)==s(j)) ++j;
+        z[i] = j;
+        if (i+z[i]>r) r=i+z[i], l=i;
     }
 #undef s
     int M=B_len;
