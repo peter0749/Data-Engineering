@@ -23,17 +23,18 @@ inline std::pair<int,int> find_longest_match(const unsigned char *fileA, const s
         if (i+z[i]-1>r) r = i+z[i]-1, l=i;
     }
 #undef s
-    int L=z[B_len];
-    int M=shortcut_index[0];
+    int M=B_len;
+    int L=z[M];
     for (auto v : shortcut_index) {
         int m = v+B_len-shortcut_index[0];
         int l = z[m];
         if (l>L) {
             L = l;
-            M = m-B_len+shortcut_index[0];
+            M = m;
         }
     }
     if (L>B_len) L = B_len; // Although this happen, the value of M is correct.
+    M = M-B_len+shortcut_index[0];
     return {M,L};
 }
 
