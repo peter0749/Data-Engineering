@@ -1,4 +1,4 @@
-all: parser word_count feature_extracter find_news_by_id gen_corpus gen_wiki_corpus loadData2Shm closeShm retrive_topN
+all: parser word_count feature_extracter find_news_by_id gen_corpus gen_wiki_corpus loadData2Shm closeShm retrive_topN compute_copy_range
 parser: parser.c record_structure_io.c
 	gcc parser.c record_structure_io.c -std=c11 -O0 -march=native -o parser
 word_count: word_count.cpp cppjieba record_structure_io.c jieba_word_count.hpp wstringcvt.hpp
@@ -15,8 +15,10 @@ loadData2Shm: loadData2Shm.c
 	gcc loadData2Shm.c -o loadData2Shm -std=c11
 closeShm: closeShm.c
 	gcc closeShm.c -o closeShm -std=c11
-retrive_topN: retrive_topN.cpp 
+retrive_topN: retrive_topN.cpp flat_hash_map.hpp
 	g++ retrive_topN.cpp -std=c++11 -openmp -fopenmp -lm -Ofast --fast-math -march=native -o retrive_topN
+compute_copy_range: compute_copy_range.cpp flat_hash_map.hpp
+	g++ compute_copy_range.cpp -std=c++11 -O3 -march=native -o compute_copy_range
 cppjieba:
 	git clone --depth=1 --single-branch --branch=master git://github.com/yanyiwu/cppjieba.git
 	git -C cppjieba checkout 31eed035180582f45882d4587779754910be0951 -q
@@ -40,5 +42,5 @@ clean:
 	$(MAKE) -C kmeans clean
 	rm -rf cppjieba
 	rm -rf word2vec
-	rm -f parser word_count feature_extracter find_news_by_id gen_corpus gen_wiki_corpus loadData2Shm closeShm retrive_topN
+	rm -f parser word_count feature_extracter find_news_by_id gen_corpus gen_wiki_corpus loadData2Shm closeShm retrive_topN compute_copy_range
 
