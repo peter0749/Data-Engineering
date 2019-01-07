@@ -21,6 +21,7 @@ make
 # 執行
 
 先把 ettoday 資料放在 makefile 同目錄下 data 資料夾
+
 wiki dump 放在 wiki_data 資料夾
 
 ```
@@ -36,14 +37,19 @@ make compile_kmeans # 編譯 kmeans 程式
 ```
 
 詞類別會被存放在 `./.db/word2vec/classes.txt`
+
 文章分群類別會被存放在 `./labels.csv`
+
 全部文章的 histogram 存放在 `./.db/word_count/features.bin`
 
 ![](https://i.imgur.com/NxUsCAs.png)
 
 把專案目錄軟連結到 Apache 能識別到的地方，
+
 之後執行 `./loadData2Shm`
+
 將文章 histogram 的 binary 載入 shared memory，方便快速查詢
+
 再使用瀏覽器開啟 `index.php`，輸入文章查詢類似文章。
 
 ![](https://i.imgur.com/COlFomT.png)
@@ -52,6 +58,7 @@ make compile_kmeans # 編譯 kmeans 程式
 # 資料
 
 使用 ettoday0~ettoday5
+
 並且以：
 
 ，。；：「」等標點符號斷句。
@@ -98,23 +105,29 @@ FINAL_PJ
 ## 實作細節
 
 除了 word2vec、斷詞以外，其他都自己使用 C/C++ 實作，
+
 儘量使用 OpenMP 平行化。
+
 網頁部份使用 Apache2.0 + PHP7.0，
+
 呼叫編譯好的 C++ 程式做新聞預處理、比較、查詢。
 
 ### Word2Vec
 
 使用 Google 提供的 C 版本 word2vec，800 多行的程式碼，很簡潔很強大。
+
 [https://github.com/tmikolov/word2vec](https://github.com/tmikolov/word2vec)
 
 ### 斷詞
 
 使用結巴 (jieba) 斷詞，這裡使用 runtime 較高效的 `cppjieba`
+
 [https://github.com/yanyiwu/cppjieba](https://github.com/yanyiwu/cppjieba)
 
 ### histogram 差異計算
 
 使用 Jensen-Shannon divergence 的平方計算兩 histogram 分佈差異
+
 若要對文章長度變化不敏感，只在乎詞頻的相對關係，可以選擇對詞頻 histogram normalize。
 
 ```c
@@ -330,11 +343,15 @@ for (int i=topN-1; i>=0; --i) {
 ### Copy-append model
 
 有 A, B 兩個檔案，我們要找到一連串操作 δ，使得：
+
 A + δ -> B
+
 δ 允許的操作有：從A複製貼上、加上新內容
 
 使用 Copy-append model 去偵測兩篇文章整段相同的部份
+
 虛擬碼：
+
 ```python
 k=4 # or 5 or 6, 7, 8, ...
 # S 為 A 的 k-gram index, N 為 B 的 string length
@@ -351,7 +368,9 @@ while i<N:
 ```
 
 C++ 實現，longest match 的部份主要使用 Z function
+
 還沒有與 K-gram index + Boyer Moore 的方法比較速度
+
 但實際跑起來蠻快的
 
 ```c++
@@ -494,8 +513,6 @@ inline std::vector< std::pair<int,int> > summary_ranges(std::vector< std::pair<i
 }
 ```
 
-
-
 # 實驗結果
 
 實驗環境：
@@ -533,17 +550,27 @@ inline std::vector< std::pair<int,int> > summary_ranges(std::vector< std::pair<i
 肉眼能觀察出來的大概有以下幾類：
 
 財經新聞 (0)
+
 體育新聞 (1,2)
+
 長文 (3)
+
 股市相關公告-短文 (4)
+
 股市相關公告-長文 (8)
+
 政治新聞 (5)
+
 甄嬛傳系列文章/原創長文 (9)
+
 3C新聞 (10)
+
 *(num) 代表某個 cluster
 
 有些 cluster 特別容易混淆，例如 財經新聞(0) 與 政治新聞 (5)
+
 有些離群值，其群心與其他類別隔非常遠，肉眼閱讀文章也能發現用詞有極大差異，例如 (9)
+
 而有些 cluster 應該處於同一類，例如 (1) (2) 同樣是體育新聞，可能是因為 cluster 數量設太大。
 
 ### 文章查詢效果
@@ -553,11 +580,13 @@ inline std::vector< std::pair<int,int> > summary_ranges(std::vector< std::pair<i
 如上圖，可以輸入文章查詢類似文章，輸出前 N 筆最像的文章標題與 URL，並顯示它與欲查詢文章的 JSD^2 作為差異度。最後列出與查詢的內文有整段重複的部份。
 
 在我的電腦上大約 1~2 秒一個查詢
+
 在系上工作站大約 3~6 秒一筆查詢
 
 ### GitHub
 
 程式碼： 
+
 [https://github.com/peter0749/Data-Engineering/tree/master/FINAL_PJ](https://github.com/peter0749/Data-Engineering/tree/master/FINAL_PJ)
 
 [https://github.com/peter0749/Data-Engineering/tree/master/copy_append_model](https://github.com/peter0749/Data-Engineering/tree/master/copy_append_model)
