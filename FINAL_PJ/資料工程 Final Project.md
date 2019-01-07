@@ -63,9 +63,11 @@ make compile_kmeans # 編譯 kmeans 程式
 ```
 FINAL_PJ
 ├── closeShm.c
+├── compute_copy_range.cpp
 ├── data_cleaning.sh
 ├── feature_extracter.cpp
 ├── find_news_by_id.cpp
+├── flat_hash_map.hpp
 ├── gen_corpus.cpp
 ├── gen_wiki_corpus.cpp
 ├── index.php
@@ -86,9 +88,11 @@ FINAL_PJ
 ├── retrive_topN.cpp
 ├── Trie.hpp.patch
 ├── word_count.cpp
-└── wstringcvt.hpp
+├── wstringcvt.hpp
+├── 資料工程 Final Project.md
+└── 資料工程 Final Project.pdf
 
-1 directory, 24 files
+1 directory, 28 files
 ```
 
 ## 實作細節
@@ -155,7 +159,7 @@ double hist_intersection_normalized(const float *P, const float *Q, unsigned int
 3. 計算每個 cluster 內資料點平均值，得到新的 centroids
 4. 重複 2, 3 直到收斂，或達到指定迭代次數
 
-複雜度為 $O(tNDK)$, N 為資料筆數, D 為資料維度, K 為 cluster 數, t 為迭代次數。實際上有可能跑到不好的局部最佳解，所以通常會選擇不同的初始值多跑幾次。
+複雜度為 O(tNDK), N 為資料筆數, D 為資料維度, K 為 cluster 數, t 為迭代次數。實際上有可能跑到不好的局部最佳解，所以通常會選擇不同的初始值多跑幾次。
 
 
 ```c 
@@ -299,14 +303,14 @@ double kmeans_intersec_int(unsigned int **data, unsigned int **return_labels, do
 
 ### Top K
 
-1. 假設資料為 $A[N]$，要找到 top $K$ 個最小元素
-2. 初始化容量為 $K$ 的 max-heap $H$
-3. $push \ A[0...K-1] \rightarrow H$
-4. 依序檢查 $A[K...N-1]$ 中的資料 $a_i , i: K \rightarrow N-1$
-5. 如果 $a_i < H.top$ ， $H.pop()$，$H.push(a_i)$
-6. 最後 $H$ 中會留下 top $K$ 個最小元素
+1. 假設資料為 A[N，要找到 top K 個最小元素
+2. 初始化容量為 K 的 max-heap H
+3. push A[0...K-1] -> H
+4. 依序檢查 A[K...N-1] 中的資料 a_i , i: K -> N-1
+5. 如果 a_i < H.top, H.pop(), H.push(a_i)
+6. 最後 H 中會留下 top K 個最小元素
 
-複雜度大約 $O(N log K)$
+複雜度大約 O(N log K)
 
 ```cpp
 for (int i=0; i<topN; ++i) max_heap.push({distances[i], i});
@@ -323,6 +327,174 @@ for (int i=topN-1; i>=0; --i) {
 }
 ```
 
+### Copy-append model
+
+有 A, B 兩個檔案，我們要找到一連串操作 δ，使得：
+A + δ -> B
+δ 允許的操作有：從A複製貼上、加上新內容
+
+使用 Copy-append model 去偵測兩篇文章整段相同的部份
+虛擬碼：
+```python
+k=4 # or 5 or 6, 7, 8, ...
+# S 為 A 的 k-gram index, N 為 B 的 string length
+i=0
+while i<N:
+    b = B[i:min(i+K, N)] # B 的 K-gram
+    if b not in S: # binary search / hash table
+        put(append,b)
+        i+=b.length
+    else:
+        (l,m) = longest_match(A,i,S,B) 
+        put(copy,l,m)
+        i+=l
+```
+
+C++ 實現，longest match 的部份主要使用 Z function
+還沒有與 K-gram index + Boyer Moore 的方法比較速度
+但實際跑起來蠻快的
+
+```c++
+inline std::pair<int,int> find_longest_match(const unsigned char *fileA, const std::vector<int> &shortcut_index, const unsigned char *fileB, int A_len, int B_len, int *z) {
+    using std::min;
+    using std::max;
+    fileA += shortcut_index[0];
+    A_len -= shortcut_index[0];
+    memset(z, 0x00, sizeof(int)*(A_len+B_len));
+#define s(i) (i<B_len?fileB[i]:fileA[i-B_len])
+    // From Eddy's codebook:
+    int l=0, r=0;
+    z[0]=A_len+B_len;
+    for (int i=1; i<A_len+B_len; ++i) {
+        int j = max(min(z[i-l],r-i),0);
+        while(i+j<A_len+B_len&&s(i+j)==s(j)) ++j;
+        z[i] = j;
+        if (i+z[i]>r) r=i+z[i], l=i;
+    }
+#undef s
+    int M=B_len;
+    int L=z[M];
+    for (auto v : shortcut_index) {
+        int m = v+B_len-shortcut_index[0];
+        int l = z[m];
+        if (l>L) {
+            L = l;
+            M = m;
+        }
+    }
+    if (L>B_len) L = B_len; // Although this happen, the value of M is correct.
+    M = M-B_len+shortcut_index[0];
+    return {M,L};
+}
+
+std::string copy_append_encoder(const unsigned char *fileA, const unsigned char *fileB,  								 int A_len, int B_len, unsigned int K_size) {
+    using namespace std;
+    int B_index=0;
+    ska::flat_hash_map<string, vector<int> > kgramA;
+    string delta;
+    int *z_buffer = new int[A_len+B_len+5];
+
+    /* Generate Kgram index for fileA */
+    for (int i=0; i<A_len; ++i) {
+        int l = min((int)(i+K_size), A_len) - i;
+        string ss((char*)(fileA+i), l);
+        if(kgramA.count(ss)==0) kgramA.insert({ss, vector<int>(1, i)});
+        else kgramA[ss].push_back(i);
+    }
+    
+    string lastKgramB;
+    int last_msg_length = 0;
+
+    while (B_index<B_len) {
+        int l = min((int)(B_index+K_size), B_len) - B_index;
+        int m;
+        string kgramB((char*)(fileB+B_index), l);
+        if (kgramA.count(kgramB)==0) {
+            string append_msg; 
+            if (last_msg_length>0) delta.resize(delta.length()-last_msg_length);
+            lastKgramB += kgramB;
+            append_msg += "a " + to_string(lastKgramB.length());
+            append_msg += "\n" + lastKgramB;
+            delta += append_msg;
+            last_msg_length = append_msg.length();
+        } else {
+            /* Find longest match between A and B[B_index:] */
+            pair<int,int> ML = find_longest_match(fileA, kgramA[kgramB], fileB+B_index, A_len, B_len-B_index, z_buffer);
+            m = ML.first;
+            l = ML.second;
+            string copy_msg;
+            copy_msg += "c " + to_string(m);
+            copy_msg += ","  + to_string(l);
+            copy_msg += "\n";
+            delta += copy_msg;
+            lastKgramB.clear();
+            last_msg_length = 0;
+        }
+        B_index += l;
+    }
+    lastKgramB.clear();
+    if (z_buffer!=NULL) delete[] z_buffer; z_buffer=NULL;
+    return delta;
+}
+```
+
+實作上將連續的 append 操作變成同一個操作，避免浪費字元數。
+
+考慮到使用者可能比較在意文章「出自」那一些段落，所以在伺服器上改為只偵測複製的操作，並找出複製的 unique 區段。
+
+```c++
+std::vector< std::pair<int,int> > copy_detect(const unsigned char *fileA, const unsigned char *fileB, int A_len, int B_len, unsigned int K_size) {
+    using namespace std;
+    int B_index=0;
+    ska::flat_hash_map<string, vector<int> > kgramA;
+    vector< pair<int,int> > ret;
+    int *z_buffer = new int[A_len+B_len+5];
+
+    /* Generate Kgram index for fileA */
+    for (int i=0; i<A_len; ++i) {
+        int l = min((int)(i+K_size), A_len) - i;
+        string ss((char*)(fileA+i), l);
+        if(kgramA.count(ss)==0) kgramA.insert({ss, vector<int>(1, i)});
+        else kgramA[ss].push_back(i);
+    }
+    
+    while (B_index<B_len) {
+        int l = min((int)(B_index+K_size), B_len) - B_index;
+        int m;
+        string kgramB((char*)(fileB+B_index), l);
+        if (kgramA.count(kgramB)>0) {
+            /* Find longest match between A and B[B_index:] */
+            pair<int,int> ML = find_longest_match(fileA, kgramA[kgramB], fileB+B_index, A_len, B_len-B_index, z_buffer);
+            m = ML.first;
+            l = ML.second;
+            ret.push_back({m,m+l}); // [, )
+        }
+        B_index += l;
+    }
+    if (z_buffer!=NULL) delete[] z_buffer; z_buffer=NULL;
+    return ret;
+}
+
+inline std::vector< std::pair<int,int> > summary_ranges(std::vector< std::pair<int,int> > &ranges) {
+    using namespace std;
+    vector< pair<int,int> > ret;
+    sort(ranges.begin(), ranges.end());
+    ranges.push_back({INT_MAX,INT_MAX}); // 哨兵
+    int l=ranges[0].first, r=ranges[0].second;
+    for (int i=1; i<ranges.size(); ++i) {
+        if (ranges[i].first<=r) r = max(r, ranges[i].second);
+        else {
+            ret.push_back({l,r});
+            l = ranges[i].first;
+            r = ranges[i].second;
+        }
+    }
+    ranges.pop_back();
+    return ret;
+}
+```
+
+
 
 # 實驗結果
 
@@ -334,7 +506,7 @@ for (int i=topN-1; i>=0; --i) {
 
 ### 分群效果
 
-資料距離群心的平均距離 ($JSD^2$)
+資料距離群心的平均距離 (JSD^2)
 
 |    | data-centroid | count  |
 |----|---------------|--------|
@@ -376,14 +548,17 @@ for (int i=topN-1; i>=0; --i) {
 
 ### 文章查詢效果
 
-![](https://i.imgur.com/ChKgLLf.png)
+![](https://i.imgur.com/OOvVO4g.png)
 
-如上圖，可以輸入文章查詢類似文章，輸出前 N 筆最像的文章標題與 URL，並顯示它與欲查詢文章的 $JSD^2$ 作為差異度。
+如上圖，可以輸入文章查詢類似文章，輸出前 N 筆最像的文章標題與 URL，並顯示它與欲查詢文章的 JSD^2 作為差異度。最後列出與查詢的內文有整段重複的部份。
 
 在我的電腦上大約 1~2 秒一個查詢
-在系上工作站也許是因為 libgomp 遺失了，只能編譯單執行緒程式，大約 6~7 秒一筆查詢
+在系上工作站大約 3~6 秒一筆查詢
 
 ### GitHub
 
 程式碼： 
 [https://github.com/peter0749/Data-Engineering/tree/master/FINAL_PJ](https://github.com/peter0749/Data-Engineering/tree/master/FINAL_PJ)
+
+[https://github.com/peter0749/Data-Engineering/tree/master/copy_append_model](https://github.com/peter0749/Data-Engineering/tree/master/copy_append_model)
+
